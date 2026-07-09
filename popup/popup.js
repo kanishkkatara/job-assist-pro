@@ -122,9 +122,20 @@ function updateMainUI() {
   if (state.activeProfile) {
     mainActions.style.display = 'block';
     headerSub.textContent = `Active: ${state.activeProfile.name}`;
+    
+    // Draggable resume logic
+    const draggableEl = document.getElementById('draggable-resume');
+    const resumeNameEl = document.getElementById('drag-resume-name');
+    if (state.activeProfile.resumeBase64 && state.activeProfile.resumeFileName) {
+      draggableEl.style.display = 'block';
+      resumeNameEl.textContent = state.activeProfile.resumeFileName;
+    } else {
+      draggableEl.style.display = 'none';
+    }
   } else {
     mainActions.style.display = 'none';
     headerSub.textContent = 'Select a profile below';
+    document.getElementById('draggable-resume').style.display = 'none';
   }
 }
 
@@ -184,7 +195,7 @@ async function autoFillForm() {
   if (!state.activeProfile) return;
   setLoading('autofill-btn', true);
   try {
-    const result = await sendToContent({ type: 'FILL_FORM', profile: state.activeProfile });
+    const result = await sendToContent({ type: 'FILL_FORM', profile: state.activeProfile, jd: state.jd });
     if (result.error) {
       showFillBanner('❌ Could not access page. Try refreshing the page.');
     } else if (result.filled === 0) {
@@ -344,13 +355,12 @@ ${p.resumeText ? `\nResume Summary (first 1000 chars):\n${p.resumeText.substring
 
 ${jd ? `Job Description:\n${jd.text?.substring(0, 2000)}\n\nCompany: ${jd.company || 'the company'}\nRole: ${jd.title || p.targetRole}` : `Applying for: ${p.targetRole}`}
 
-Write a 3-4 paragraph cover letter that:
-1. Opens with a strong hook connecting the applicant to the role
-2. Highlights 2-3 specific achievements/skills most relevant to the JD
-3. Shows knowledge of the company/role
-4. Closes with a confident call to action
-
-Tone: Professional but personable. Do not use generic phrases like "I am writing to express my interest". Be specific and results-oriented.`;
+Write a 2-3 paragraph cover letter following these strict rules:
+1. Do NOT write a traditional corporate cover letter. Avoid standard openings (e.g., "I am writing to apply") and generic closings (e.g., "Thank you for considering").
+2. Open with a strong, grounded technical hook connecting to the company's specific product or problem.
+3. Highlight only the 1-2 most relevant achievements from the experience provided. Do not list everything.
+4. Close abruptly and confidently (e.g. "I'd love to chat about building this at [Company].").
+5. Adopt the applicant's Custom Persona exactly as provided. DO NOT use generic AI cover letter language.`;
 }
 
 function buildAnswerPrompt(question, profile, jd) {
@@ -364,11 +374,18 @@ Skills: ${(p.skills || []).join(', ')}
 Experience: ${(p.experience || []).map(e => `${e.title} at ${e.company}`).join(', ')}
 Summary: ${p.summary || ''}
 Additional Context: ${p.additionalContext || ''}
+${p.systemPrompt ? `Custom Persona / Rules: ${p.systemPrompt}` : ''}
 ${jd ? `\nJob they're applying to: ${jd.title} at ${jd.company}` : ''}
 
 Question: "${question}"
 
-Answer (concise, first-person, professional, tailored to their background):`;
+CRITICAL INSTRUCTIONS:
+1. DIRECTLY answer the question asked. Do NOT just lazily summarize the applicant's resume or objective.
+2. If the question asks "Why this role/company" or "What excites you", explicitly state what excites them about the specific company or role responsibilities, mapping it back to their background (e.g. "I am excited to bring my focus on execution speed to help [Company] solve [Problem]").
+3. If the question asks for salary expectations, mention a specific range based on location (e.g. 100,000 EUR or 40 LPA INR), NEVER mention "open to discussion".
+4. Adopt the applicant's Custom Persona if provided.
+
+Answer (concise, first-person, professional, tailored to their background, answering the exact question):`;
 }
 
 function templateCoverLetter(profile, jd) {
@@ -406,6 +423,9 @@ function templateAnswer(question, profile) {
 
   if (q.includes('why') && (q.includes('company') || q.includes('us') || q.includes('here') || q.includes('role'))) {
     return `I am drawn to this role because it aligns perfectly with my expertise in ${skills} and my passion for ${profile.targetRole || 'this domain'}. I have closely followed your company's work and I am excited about the opportunity to contribute to your mission while continuing to grow professionally.`;
+  }
+  if (q.includes('excite') || q.includes('interest')) {
+    return `I am incredibly excited about the opportunity to bring my background in ${skills} to this role. Specifically, the chance to tackle complex challenges and drive execution aligns perfectly with my professional goals and past experience at ${company}.`;
   }
   if (q.includes('strength') || q.includes('best quality')) {
     return `My key strength is ${skills ? skills.split(',')[0].trim() : 'problem-solving'}. At ${company}, I consistently leveraged this to deliver impactful results, including ${profile.experience?.[0]?.description?.split('.')[0] || 'driving significant improvements in team performance and product quality'}.`;
@@ -476,6 +496,16 @@ async function init() {
 
   // Regen cover letter
   document.getElementById('regen-cover-letter').addEventListener('click', generateCoverLetter);
+
+  // Resume Drag & Drop
+  const draggableResume = document.getElementById('draggable-resume');
+  draggableResume.addEventListener('dragstart', (e) => {
+    if (state.activeProfile && state.activeProfile.resumeBase64) {
+      // Create a DataTransfer item for the file
+      const fileName = state.activeProfile.resumeFileName || 'resume.pdf';
+      e.dataTransfer.setData('DownloadURL', `application/pdf:${fileName}:${state.activeProfile.resumeBase64}`);
+    }
+  });
 
   // Copy cover letter
   document.getElementById('copy-cover-letter').addEventListener('click', () => {

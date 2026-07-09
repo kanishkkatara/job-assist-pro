@@ -214,7 +214,40 @@
     // Do NOT blur. Blurring immediately closes autocomplete dropdowns (like Location).
   }
 
-  function fillForm(profile) {
+  function getSmartSalary(jdText, fallbackSalary) {
+    if (!jdText) return fallbackSalary || '95,000 - 110,000 EUR';
+    
+    // First, try to extract an explicitly mentioned salary range from the JD
+    const salaryRegex = /(?:[$£€₹]|INR|EUR|USD|GBP)?\s*(\d+(?:,\d+)+|\d+\.?\d*k|\d+\s*LPA|\d{2,3})\s*(?:-|to)\s*(?:[$£€₹]|INR|EUR|USD|GBP)?\s*(\d+(?:,\d+)+|\d+\.?\d*k|\d+\s*LPA|\d{2,3})\s*(?:INR|EUR|USD|GBP|LPA)?/gi;
+    const matches = [...jdText.matchAll(salaryRegex)];
+    for (const match of matches) {
+      const full = match[0].trim();
+      // Ensure it looks like a salary and not a year range like 2021-2022
+      if (!full.includes('202') && !full.includes('201') && !full.includes('200')) {
+        if (/[$£€₹k]|000|lpa|inr|eur|usd|gbp/i.test(full)) {
+          return full; // Return the exact range mentioned in the JD!
+        }
+      }
+    }
+    
+    // If no explicit range found, fallback to regional logic
+    const text = jdText.toLowerCase();
+    if (text.includes('₹') || text.includes('inr') || text.includes('lpa') || text.includes('india') || text.includes('bangalore') || text.includes('bengaluru')) {
+      return '38,00,000 - 45,00,000 INR';
+    }
+    if (text.includes('€') || text.includes('eur') || text.includes('euro') || text.includes('berlin') || text.includes('germany') || text.includes('amsterdam') || text.includes('paris')) {
+      return '95,000 - 110,000 EUR';
+    }
+    if (text.includes('£') || text.includes('gbp') || text.includes('uk ') || text.includes('london')) {
+      return '85,000 - 100,000 GBP';
+    }
+    if (text.includes('$') || text.includes('usd') || text.includes('us ') || text.includes('united states') || text.includes('new york') || text.includes('san francisco')) {
+      return '130,000 - 150,000 USD';
+    }
+    return fallbackSalary || '95,000 - 110,000 EUR';
+  }
+
+  async function fillForm(profile, jd) {
     const fields = detectFormFields();
     let filled = 0;
 
@@ -231,7 +264,7 @@
       currentTitle: profile.targetRole || '',
       currentCompany: profile.experience?.[0]?.company || '',
       yearsExperience: profile.personalInfo?.yearsExperience || '',
-      salary: profile.personalInfo?.expectedSalary || '',
+      salary: getSmartSalary(jd?.text, profile.personalInfo?.expectedSalary),
       startDate: profile.personalInfo?.availability || '',
     };
 
@@ -283,6 +316,57 @@
         setTimeout(() => {
           element.style.boxShadow = '';
         }, 2000);
+      }
+    }
+
+    // Auto-Upload CV
+    if (profile.resumeBase64 && profile.resumeFileName) {
+      const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+      for (const input of fileInputs) {
+        
+        let isResume = false;
+        const { labelText, attrs } = extractLabel(input);
+        const searchText = attrs + ' ' + labelText.toLowerCase();
+        
+        if (/\b(resume|cv|curriculum vitae)\b/i.test(searchText)) {
+          isResume = true;
+        } else {
+          // Fallback: Check up to 8 levels of parent innerText for 'resume' or 'cv'
+          let current = input.parentElement;
+          let depth = 0;
+          while (current && current.tagName !== 'BODY' && depth < 8) {
+            const text = (current.innerText || '').toLowerCase();
+            if (/\b(resume|cv|curriculum vitae)\b/.test(text)) {
+              isResume = true;
+              break;
+            }
+            current = current.parentElement;
+            depth++;
+          }
+        }
+        
+        // If it's the only file input on the page, we can safely assume it's the resume upload
+        if (!isResume && fileInputs.length === 1) {
+          isResume = true;
+        }
+        
+        if (isResume) {
+          try {
+            const fetchRes = await fetch(profile.resumeBase64);
+            const blob = await fetchRes.blob();
+            const file = new File([blob], profile.resumeFileName, { type: 'application/pdf' });
+            
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            input.files = dataTransfer.files;
+            
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.dataset.jobassistFilled = 'true';
+            filled++;
+          } catch (e) {
+            console.error('[JobAssist] Failed to auto-attach resume', e);
+          }
+        }
       }
     }
 
@@ -338,8 +422,12 @@
     }
 
     if (message.type === 'FILL_FORM') {
-      const result = fillForm(message.profile);
-      sendResponse(result);
+      fillForm(message.profile, message.jd).then(result => {
+        sendResponse(result);
+      }).catch(err => {
+        console.error('[JobAssist] Form fill error:', err);
+        sendResponse({ error: err.message });
+      });
       return true;
     }
 

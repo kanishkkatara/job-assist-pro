@@ -193,6 +193,7 @@ let currentExperience = [];
 let currentEducation = [];
 let currentResumeText = '';
 let currentResumeFileName = '';
+let currentResumeBase64 = '';
 let currentCustomFields = {};
 
 function openProfilePanel(profileId = null) {
@@ -204,6 +205,7 @@ function openProfilePanel(profileId = null) {
   currentEducation = [];
   currentResumeText = '';
   currentResumeFileName = '';
+  currentResumeBase64 = '';
   currentCustomFields = {};
 
   // Reset form
@@ -257,6 +259,7 @@ function populateForm(profile) {
   currentEducation = profile.education || [];
   currentResumeText = profile.resumeText || '';
   currentResumeFileName = profile.resumeFileName || '';
+  currentResumeBase64 = profile.resumeBase64 || '';
   currentCustomFields = profile.customFields || {};
 
   renderSkillTags();
@@ -314,6 +317,7 @@ async function saveProfile() {
     customFields: currentCustomFields,
     resumeText: currentResumeText,
     resumeFileName: currentResumeFileName,
+    resumeBase64: currentResumeBase64,
     additionalContext: document.getElementById('pf-extra-context').value.trim(),
     systemPrompt: document.getElementById('pf-system-prompt').value.trim(),
     createdAt: profileId ? undefined : new Date().toISOString(),
@@ -489,6 +493,7 @@ function renderCustomFieldsList() {
 function clearResume() {
   currentResumeText = '';
   currentResumeFileName = '';
+  currentResumeBase64 = '';
   document.getElementById('upload-result').style.display = 'none';
   document.getElementById('resume-preview-wrap').style.display = 'none';
   document.getElementById('resume-file-input').value = '';
@@ -547,8 +552,17 @@ async function handleResumeFile(file) {
 
   try {
     const { text, pages } = await extractPdfText(file);
+    
+    // Convert to Base64 for auto-upload feature
+    const base64Str = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+
     currentResumeText = text;
     currentResumeFileName = file.name;
+    currentResumeBase64 = base64Str;
 
     extractingEl.style.display = 'none';
     resultEl.style.display = 'block';
