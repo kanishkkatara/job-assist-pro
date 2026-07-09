@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JobAssist Pro — Dashboard</title>
+  <meta name="description" content="Manage your job application profiles, upload resumes, and configure AI settings." />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+<div class="app-layout">
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="logo-icon">🚀</div>
+      JobAssist <span>Pro</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-badge">v1.0</div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <span class="sidebar-section-label">Navigation</span>
+    <button class="sidebar-item active" data-page="profiles" id="nav-profiles">
+      <span class="icon">👤</span> My Profiles
+    </button>
+    <button class="sidebar-item" data-page="settings" id="nav-settings">
+      <span class="icon">⚙️</span> Settings
+    </button>
+    <button class="sidebar-item" data-page="help" id="nav-help">
+      <span class="icon">📖</span> How to Use
+    </button>
+    <div class="sidebar-bottom">
+      <button class="sidebar-item" id="open-extension-btn">
+        <span class="icon">🔌</span> Open Extension
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main-content">
+
+    <!-- ─── Profiles Page ─── -->
+    <div class="page active" id="page-profiles">
+      <div class="page-header">
+        <div>
+          <div class="page-title">My Profiles</div>
+          <div class="page-subtitle">Create separate profiles for different job roles</div>
+        </div>
+        <button class="btn btn-secondary" id="import-profile-btn">
+          📥 Import Profile
+        </button>
+        <button class="btn btn-primary" id="new-profile-btn">
+          ＋ New Profile
+        </button>
+        <input type="file" id="import-profile-input" accept=".json" style="display:none" />
+      </div>
+
+      <div class="profiles-grid" id="profiles-grid">
+        <!-- Profile cards rendered here -->
+        <div class="empty-state" id="profiles-empty" style="display:none; grid-column:1/-1;">
+          <div class="empty-icon">📋</div>
+          <h3>No profiles yet</h3>
+          <p>Create your first profile to get started with job applications</p>
+          <button class="btn btn-primary" id="new-profile-btn-empty">＋ Create Profile</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Settings Page ─── -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Settings</div>
+          <div class="page-subtitle">Configure AI and extension preferences</div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-title">🤖 AI Configuration</div>
+        <div class="settings-card-desc">
+          Add your OpenAI API key to enable AI-powered cover letter generation and intelligent question answering.
+          Your key is stored locally and never sent to our servers.
+        </div>
+        <div class="form-group">
+          <label class="form-label">OpenAI API Key</label>
+          <div class="api-key-input-wrap">
+            <input type="password" class="form-input" id="api-key-input" placeholder="sk-proj-..." />
+            <button class="btn btn-secondary" id="toggle-key-btn">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Model</label>
+          <select class="form-select" id="model-select">
+            <option value="gpt-4o-mini">GPT-4o Mini (Fast & affordable)</option>
+            <option value="gpt-4o">GPT-4o (Best quality)</option>
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Legacy)</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn btn-primary" id="save-settings-btn">Save Settings</button>
+          <button class="btn btn-secondary" id="test-api-btn">Test Connection</button>
+          <span id="api-test-result" style="font-size:12px;"></span>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-title">🗑️ Data Management</div>
+        <div class="settings-card-desc">
+          Manage your stored data. All data is stored locally in your browser.
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-secondary" id="export-data-btn">📤 Export All Data</button>
+          <button class="btn btn-danger" id="clear-data-btn">🗑 Clear All Data</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Help Page ─── -->
+    <div class="page" id="page-help">
+      <div class="page-header">
+        <div class="page-title">How to Use</div>
+      </div>
+      <div style="max-width:680px;">
+        <div class="settings-card" style="margin-bottom:20px;">
+          <div class="settings-card-title">📋 Step 1 — Create Profiles</div>
+          <div class="settings-card-desc">
+            Create a profile for each job role you're applying to (e.g., "FDE", "TPM").
+            Fill in your personal details, work experience, skills, and upload your tailored resume PDF.
+            The extension will extract text from your resume to use as context.
+          </div>
+        </div>
+        <div class="settings-card" style="margin-bottom:20px;">
+          <div class="settings-card-title">📑 Step 2 — Capture Job Descriptions</div>
+          <div class="settings-card-desc">
+            Navigate to a job listing on any platform (LinkedIn, Greenhouse, Lever, Workday, etc.).
+            Click the JobAssist Pro extension icon, then click "Capture Job Description".
+            The JD is saved as context for your next application.
+          </div>
+        </div>
+        <div class="settings-card" style="margin-bottom:20px;">
+          <div class="settings-card-title">✍️ Step 3 — Apply with AI Assist</div>
+          <div class="settings-card-desc">
+            On the application form page, click the extension icon and select your profile.
+            Use "Auto-fill Form" to fill standard fields automatically.
+            Use "Generate Cover Letter" to get an AI-crafted cover letter based on your profile and the JD.
+            Use "Answer Questions" to get AI suggestions for open-ended application questions.
+          </div>
+        </div>
+        <div class="settings-card">
+          <div class="settings-card-title">⚙️ Step 4 — Configure AI (Optional)</div>
+          <div class="settings-card-desc">
+            For AI-powered responses, go to Settings and add your OpenAI API key.
+            Without an API key, the extension uses smart templates which still work well.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── Profile Panel (Drawer) ─── -->
+<div class="panel-overlay" id="profile-panel-overlay">
+  <div class="panel" id="profile-panel">
+    <div class="panel-header">
+      <div class="panel-title" id="panel-title">New Profile</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" id="save-profile-btn">Save Profile</button>
+        <button class="btn btn-secondary btn-sm btn-icon" id="close-panel-btn">✕</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="profile-id" />
+
+      <!-- Personal Info -->
+      <div class="form-section">
+        <div class="form-section-title">👤 Personal Info</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Profile Name *</label>
+            <input type="text" class="form-input" id="pf-name" placeholder="e.g., FDE Role" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Target Role *</label>
+            <input type="text" class="form-input" id="pf-target-role" placeholder="e.g., Field Developer Engineer" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-input" id="pf-full-name" placeholder="John Doe" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="pf-email" placeholder="john@example.com" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="tel" class="form-input" id="pf-phone" placeholder="+1 (555) 000-0000" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Location</label>
+            <input type="text" class="form-input" id="pf-location" placeholder="San Francisco, CA" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">LinkedIn URL</label>
+            <input type="url" class="form-input" id="pf-linkedin" placeholder="https://linkedin.com/in/..." />
+          </div>
+          <div class="form-group">
+            <label class="form-label">GitHub URL</label>
+            <input type="url" class="form-input" id="pf-github" placeholder="https://github.com/..." />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Website / Portfolio</label>
+            <input type="url" class="form-input" id="pf-website" placeholder="https://yoursite.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Years of Experience</label>
+            <input type="number" class="form-input" id="pf-years-exp" placeholder="5" min="0" max="50" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Availability / Notice Period</label>
+            <input type="text" class="form-input" id="pf-availability" placeholder="Immediate / 2 weeks" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expected Salary</label>
+            <input type="text" class="form-input" id="pf-salary" placeholder="$120,000 - $150,000" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Resume Upload -->
+      <div class="form-section">
+        <div class="form-section-title">📄 Resume</div>
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="resume-file-input" accept=".pdf" />
+          <div class="upload-icon">📤</div>
+          <div class="upload-title">Drop your resume PDF here</div>
+          <div class="upload-sub">or click to browse • PDF only</div>
+        </div>
+        <div id="upload-result" style="margin-top:12px;display:none;"></div>
+        <div id="resume-extracting" style="margin-top:12px;display:none;align-items:center;gap:10px;color:var(--text-secondary);">
+          <div class="spinner"></div> Extracting text from PDF...
+        </div>
+        <div id="resume-preview-wrap" style="margin-top:12px;display:none;">
+          <label class="form-label" style="margin-bottom:6px;display:block;">Extracted Text Preview</label>
+          <div class="text-preview" id="resume-text-preview"></div>
+        </div>
+      </div>
+
+      <!-- Professional Summary -->
+      <div class="form-section">
+        <div class="form-section-title">✍️ Professional Summary</div>
+        <div class="form-group form-row single">
+          <label class="form-label">Summary / Bio</label>
+          <textarea class="form-textarea" id="pf-summary" rows="4"
+            placeholder="Write a brief professional summary that highlights your key strengths and career goals..."></textarea>
+        </div>
+      </div>
+
+      <!-- Skills -->
+      <div class="form-section">
+        <div class="form-section-title">🛠 Skills</div>
+        <div class="form-group">
+          <label class="form-label">Add skills (press Enter or comma)</label>
+          <div class="skills-input-wrap" id="skills-container">
+            <input type="text" class="form-input skill-input" id="skills-input" placeholder="React, Python, AWS..." />
+          </div>
+        </div>
+      </div>
+
+      <!-- Experience -->
+      <div class="form-section">
+        <div class="form-section-title">💼 Work Experience</div>
+        <div class="dynamic-list" id="experience-list"></div>
+        <button class="btn btn-secondary btn-sm" id="add-exp-btn" style="margin-top:12px;">＋ Add Experience</button>
+      </div>
+
+      <!-- Education -->
+      <div class="form-section">
+        <div class="form-section-title">🎓 Education</div>
+        <div class="dynamic-list" id="education-list"></div>
+        <button class="btn btn-secondary btn-sm" id="add-edu-btn" style="margin-top:12px;">＋ Add Education</button>
+      </div>
+
+      <!-- AI Persona & Context -->
+      <div class="form-section">
+        <div class="form-section-title">🧠 AI Persona & Context</div>
+        <div class="form-group form-row single">
+          <label class="form-label">Custom AI Persona / Rules (How should the AI write for this profile?)</label>
+          <textarea class="form-textarea" id="pf-system-prompt" rows="8"
+            placeholder="e.g., You are writing as a pragmatic, highly technical builder. Use a confident, understated tone. Do not use filler..."></textarea>
+        </div>
+        <div class="form-group form-row single">
+          <label class="form-label">Extra context for AI (achievements, projects, preferences)</label>
+          <textarea class="form-textarea" id="pf-extra-context" rows="4"
+            placeholder="Led a team of 8 engineers, reduced deployment time by 60%, open to relocation..."></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- PDF.js -->
+<script src="../lib/pdf.min.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>
