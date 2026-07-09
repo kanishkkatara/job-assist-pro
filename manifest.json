@@ -10,7 +10,6 @@
     "128": "assets/icons/icon128.png"
   },
   "action": {
-    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "assets/icons/icon16.png",
       "32": "assets/icons/icon32.png",
@@ -27,6 +26,9 @@
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
+  "side_panel": {
+    "default_path": "popup/popup.html"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
@@ -38,7 +40,8 @@
     "storage",
     "tabs",
     "activeTab",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
   "host_permissions": [
     "<all_urls>"

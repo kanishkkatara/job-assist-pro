@@ -93,7 +93,7 @@
     referral: /\b(referral|referred|how.?did.?you.?hear|source)\b/i,
   };
 
-  function classifyField(el) {
+  function extractLabel(el) {
     const attrs = [
       el.getAttribute('name') || '',
       el.getAttribute('id') || '',
@@ -102,18 +102,36 @@
       el.getAttribute('autocomplete') || '',
     ].join(' ').toLowerCase();
 
-    // Find nearby label text
     let labelText = '';
     if (el.id) {
       const label = document.querySelector(`label[for="${el.id}"]`);
       if (label) labelText = label.innerText;
     }
-    // Check parent for label
-    const parent = el.closest('div, li, section, fieldset');
-    if (parent) {
-      const label = parent.querySelector('label');
-      if (label) labelText = label.innerText;
+    
+    if (!labelText) {
+      let current = el.parentElement;
+      let depth = 0;
+      while (current && depth < 4) {
+        const label = current.querySelector('label');
+        if (label) {
+          labelText = label.innerText;
+          break;
+        }
+        
+        const prev = current.previousElementSibling;
+        if (prev && prev.innerText && prev.innerText.trim().length < 50) {
+          labelText = prev.innerText.trim();
+          break;
+        }
+        
+        current = current.parentElement;
+        depth++;
+      }
     }
+    return { labelText: labelText ? labelText.trim() : '', attrs };
+  }
+
+  function classifyField(el, labelText, attrs) {
     const searchText = attrs + ' ' + labelText.toLowerCase();
 
     for (const [fieldType, pattern] of Object.entries(FIELD_PATTERNS)) {
@@ -124,15 +142,16 @@
 
   function detectFormFields() {
     const inputs = Array.from(document.querySelectorAll(
-      'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select'
+      'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select, [contenteditable="true"]'
     )).filter(el => el.offsetParent !== null); // only visible
 
     const fields = [];
     for (const el of inputs) {
-      const fieldType = classifyField(el);
-      if (fieldType) {
-        fields.push({ element: el, fieldType });
-      }
+      const { labelText, attrs } = extractLabel(el);
+      const fieldType = classifyField(el, labelText, attrs);
+      
+      // We push all elements so we can check them against customFields
+      fields.push({ element: el, fieldType, labelText });
     }
     return fields;
   }
@@ -165,23 +184,34 @@
   }
 
   // ─────────────────────────────────────────────
-  // Form Filling
+  // Form Filling & Learning
   // ─────────────────────────────────────────────
   function setNativeValue(el, value) {
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-      el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
-      'value'
-    )?.set;
+    el.dataset.jobassistFilled = 'true';
+    if (el.focus) el.focus();
 
-    if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(el, value);
+    if (el.isContentEditable) {
+      el.textContent = value;
     } else {
-      el.value = value;
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
+        'value'
+      )?.set;
+
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(el, value);
+      } else {
+        el.value = value;
+      }
     }
 
     el.dispatchEvent(new Event('input', { bubbles: true }));
+    // React synthetic events sometimes need standard key codes
+    el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown', keyCode: 40 }));
+    el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'ArrowDown', keyCode: 40 }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
-    el.dispatchEvent(new Event('blur', { bubbles: true }));
+    
+    // Do NOT blur. Blurring immediately closes autocomplete dropdowns (like Location).
   }
 
   function fillForm(profile) {
@@ -205,9 +235,46 @@
       startDate: profile.personalInfo?.availability || '',
     };
 
-    for (const { element, fieldType } of fields) {
-      const value = valueMap[fieldType];
+    for (const { element, fieldType, labelText } of fields) {
+      let value = valueMap[fieldType];
+      
+      // Check custom fields if no standard match was found
+      if (!value && profile.customFields && labelText) {
+        for (const [customKey, customVal] of Object.entries(profile.customFields)) {
+          // If the page's label contains the learned key (case insensitive)
+          if (labelText.toLowerCase().includes(customKey.toLowerCase())) {
+            value = customVal;
+            break;
+          }
+        }
+      }
+
       if (value) {
+        if (fieldType === 'phone') {
+          const match = value.match(/^\+?(\d{1,3})[\s-]+(.+)$/);
+          if (match) {
+            const countryCode = match[1];
+            const localNumber = match[2];
+            
+            const container = element.closest('div, label, fieldset, li, section');
+            if (container) {
+              const select = container.querySelector('select');
+              if (select) {
+                for (const opt of select.options) {
+                  if (opt.value.includes(countryCode) || opt.textContent.includes('+' + countryCode)) {
+                    setNativeValue(select, opt.value);
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // Aggressively strip country code for ATS compatibility. 
+            // Most modern ATS forms split this into a custom UI button or standardizing format.
+            value = localNumber; 
+          }
+        }
+
         setNativeValue(element, value);
         filled++;
         // Highlight filled fields briefly
@@ -221,6 +288,32 @@
 
     return { filled, total: fields.length };
   }
+
+  // Auto-Learn fields that user types in
+  document.addEventListener('change', (e) => {
+    const el = e.target;
+    if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable) {
+      // Ignore if we just autofilled it
+      if (el.dataset.jobassistFilled) return;
+      
+      const { labelText } = extractLabel(el);
+      if (labelText && labelText.length > 2 && labelText.length < 50) {
+        let value = el.value || el.textContent;
+        if (el.tagName === 'SELECT') {
+          value = el.options[el.selectedIndex]?.text || el.value;
+        }
+        
+        // Ignore obvious non-application fields
+        const lower = labelText.toLowerCase();
+        if (lower.includes('search') || lower.includes('password') || !value) return;
+        
+        chrome.runtime.sendMessage({
+          type: 'LEARN_FIELD',
+          payload: { label: labelText, value }
+        });
+      }
+    }
+  }, true);
 
   function fillAnswer(questionId, answer) {
     const questions = detectOpenQuestions();

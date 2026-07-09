@@ -193,6 +193,7 @@ let currentExperience = [];
 let currentEducation = [];
 let currentResumeText = '';
 let currentResumeFileName = '';
+let currentCustomFields = {};
 
 function openProfilePanel(profileId = null) {
   const overlay = document.getElementById('profile-panel-overlay');
@@ -203,6 +204,7 @@ function openProfilePanel(profileId = null) {
   currentEducation = [];
   currentResumeText = '';
   currentResumeFileName = '';
+  currentCustomFields = {};
 
   // Reset form
   ['pf-name','pf-target-role','pf-full-name','pf-email','pf-phone','pf-location',
@@ -216,6 +218,7 @@ function openProfilePanel(profileId = null) {
   renderSkillTags();
   renderExperienceList();
   renderEducationList();
+  renderCustomFieldsList();
 
   if (profileId) {
     titleEl.textContent = 'Edit Profile';
@@ -254,10 +257,12 @@ function populateForm(profile) {
   currentEducation = profile.education || [];
   currentResumeText = profile.resumeText || '';
   currentResumeFileName = profile.resumeFileName || '';
+  currentCustomFields = profile.customFields || {};
 
   renderSkillTags();
   renderExperienceList();
   renderEducationList();
+  renderCustomFieldsList();
 
   if (profile.resumeText) {
     document.getElementById('upload-result').style.display = 'block';
@@ -306,6 +311,7 @@ async function saveProfile() {
     skills: [...currentSkills],
     experience: [...currentExperience],
     education: [...currentEducation],
+    customFields: currentCustomFields,
     resumeText: currentResumeText,
     resumeFileName: currentResumeFileName,
     additionalContext: document.getElementById('pf-extra-context').value.trim(),
@@ -440,6 +446,40 @@ function renderEducationList() {
       });
     });
     list.appendChild(item);
+  });
+}
+
+function renderCustomFieldsList() {
+  const container = document.getElementById('custom-fields-list');
+  const section = document.getElementById('custom-fields-section');
+  if (!container || !section) return;
+
+  const keys = Object.keys(currentCustomFields);
+  if (keys.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  container.innerHTML = '';
+  
+  keys.forEach(key => {
+    const el = document.createElement('div');
+    el.className = 'list-item';
+    el.innerHTML = `
+      <div class="list-item-content">
+        <div class="list-item-title">${key}</div>
+        <div class="list-item-sub">${currentCustomFields[key]}</div>
+      </div>
+      <div class="list-item-actions">
+        <button class="icon-btn del-btn" title="Delete">🗑️</button>
+      </div>
+    `;
+    el.querySelector('.del-btn').addEventListener('click', () => {
+      delete currentCustomFields[key];
+      renderCustomFieldsList();
+    });
+    container.appendChild(el);
   });
 }
 

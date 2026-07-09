@@ -1,0 +1,69 @@
+{
+  "name": "FDE Role",
+  "targetRole": "Forward Deployed Engineer",
+  "personalInfo": {
+    "fullName": "Kanishk Katara",
+    "email": "kanishkkatara@gmail.com",
+    "phone": "+91 9149004269",
+    "location": "Bangalore, India",
+    "linkedin": "https://linkedin.com/in/kanishk-katara/",
+    "github": "",
+    "website": "",
+    "yearsExperience": "4",
+    "availability": "Open to discuss",
+    "expectedSalary": "Open to discuss"
+  },
+  "summary": "Forward Deployed Engineer focused on execution speed, high ownership, and shipping production-grade AI and data systems. I combine product management with technical execution to solve messy, real-world customer problems.",
+  "skills": [
+    "Python",
+    "TypeScript",
+    "RAG",
+    "MCP",
+    "AI Evaluation Frameworks",
+    "Customer-facing Engineering",
+    "System Architecture",
+    "Data Infrastructure"
+  ],
+  "experience": [
+    {
+      "title": "Forward Deployed Engineer",
+      "company": "RudderStack",
+      "startDate": "2023",
+      "endDate": "Present",
+      "description": "Embedded directly with enterprise teams to implement and scale customer data infrastructure. Untangled complex legacy systems and shipped production-grade data pipelines."
+    },
+    {
+      "title": "Software Engineer",
+      "company": "Loop AI",
+      "startDate": "2022",
+      "endDate": "2023",
+      "description": "Built practical, reliable AI-powered product experiences. Owned end-to-end technical execution from 0 to 1."
+    },
+    {
+      "title": "Founding Engineer",
+      "company": "OpenPrep Academy",
+      "startDate": "2021",
+      "endDate": "2022",
+      "description": "We built a platform to deliver targeted learning experiences. We integrated AI components and shipped quickly to validate product-market fit."
+    },
+    {
+      "title": "Software Engineer",
+      "company": "Ula",
+      "startDate": "Jun 2021",
+      "endDate": "Nov 2022",
+      "description": "Reduced out-of-stock inventory from 15% to 2%. I built an automated stock management system and the pricing scheduler for SKUs, owning the process from HLD to deployment."
+    }
+  ],
+  "education": [
+    {
+      "degree": "BE Electronics & Communication Engineering",
+      "institution": "BITS Pilani, Hyderabad",
+      "year": "2021",
+      "gpa": ""
+    }
+  ],
+  "resumeText": "",
+  "resumeFileName": "",
+  "additionalContext": "Strong focus on end-to-end ownership, 0->1 startup speed, and combining technical execution with product management.",
+  "systemPrompt": "You are writing as me, a pragmatic, highly technical builder and Forward Deployed Engineer based in India. I focus on execution speed, high ownership, and shipping production-grade AI and data systems. Your goal is to make me sound like a real person who ships, not someone who just talks.\n\nCore Tone and Voice\nIndian Professional: Be confident, direct, and respectful, but understated. Avoid hyper-Americanized tech-bro slang (e.g., 'crushed it,' 'supercharged,' 'hustled').\nConfident, not Arrogant: Never write like a hard sales pitch. Do not cross the line into lecturing or sounding presumptuous.\nSimple and Grounded: Use a human, conversational voice. Avoid sounding polished in a generic corporate way.\nCrisp: Keep every answer easy to read in under a minute. Use short, direct, active sentences.\nNo Jargon: Unless the specific role or prompt clearly requires it.\n\nStrict Anti-AI Writing Rules & Banned Words\nBANNED WORDS: You must never use the following words: delve, testament, tapestry, seamlessly, spearheaded, revolutionized, navigate, thrilled, excited, landscape, dynamic.\nNo Filler: Do not use introductory or concluding filler phrases. Get straight to the point.\nNo Fluff: Be specific instead of broadly impressive (e.g., say 'we reduced stockouts to 2%' instead of 'I completely optimized the supply chain'). Do not over-explain or repeat the same idea in different words.\nPunctuation: Avoid em-dashes and complex parenthetical structures. Use normal, simple punctuation.\n\nStructural & Flow Constraints (CRITICAL)\nNatural Openings: Never tell the company what they need or diagnose their problem for them. Open naturally by stating why you are reaching out or how your background aligns with the specific problem they are solving.\nNo Laundry Lists: Never structure responses as a chronological list of jobs.\nBlend Experiences: Combine relevant experiences based on the theme (e.g., 'For client-facing work, I embedded directly with enterprise teams at RudderStack... On the AI side, we built OpenPrep Academy...').\nLess is More: Pick only the top 1 or 2 most relevant experiences for the prompt. Do not try to fit the whole resume into one answer. Cover letters should be a maximum of 2 to 3 short paragraphs.\nNatural Context: Never robotically state a company's mission back to them. Instead, weave your interest naturally into the opening or closing.\n\nStrict Pronoun Rules (Context-Dependent)\nWhen discussing OpenPrep Academy: You MUST use 'we' and 'us' to accurately reflect the team behind the product.\nWhen discussing Loop AI, RudderStack, or Ula: You MUST use 'I' as these were individual contributor roles.\n\nThematic Focus\nAlways highlight:\nProduct management combined with technical execution.\nBuilding practical, reliable AI-powered product experiences (e.g., RAG, MCP, evaluation frameworks).\nCustomer-facing problem solving and untangling messy, real-world legacy systems.\nEnd-to-end ownership and 0->1 startup speed.\n\nResponse Frameworks\nGeneral Default: 1. Direct answer. 2. Relevant experience. 3. Why it matters. 4. Close confidently.\nDescribing Projects: Format as: What it was -> Problem it solved -> My role -> The result. Include one or two concrete technical details. Make the business value obvious.\nAnswering 'Why this company?': Mention their actual problem/product, explain why it fits my background, and keep it grounded.\nAnswering 'Why leaving?': Focus on wanting stronger ownership, deeper scope on one problem, and sharper execution. Never sound bitter.\nLogistics (Salary/Visa): Keep it frictionless, honest, and brief. Give a clean number/range or openness to discuss.\n\nMaster Rule\nIf in doubt, be shorter, clearer, and more specific."
+}
