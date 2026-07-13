@@ -29,6 +29,7 @@ let state = {
   settings: {},
   activeProfile: null,
   jd: null,
+  analysisCache: null, // cached analyst output keyed by jd url
 };
 
 // ─────────────────────────────────────────────
@@ -38,15 +39,15 @@ function getInitials(name) {
   return name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
 }
 
-function setLoading(btnId, loading, originalContent) {
+function setLoading(btnId, loading, customMessage = null) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   if (loading) {
     btn.dataset.originalContent = btn.innerHTML;
-    btn.innerHTML = `<span class="spinner"></span> Working...`;
+    btn.innerHTML = `<span class="spinner"></span> ${customMessage || 'Working...'}`;
     btn.disabled = true;
   } else {
-    btn.innerHTML = btn.dataset.originalContent || originalContent;
+    btn.innerHTML = btn.dataset.originalContent || '';
     btn.disabled = false;
   }
 }
@@ -58,6 +59,16 @@ function copyToClipboard(text) {
     ta.select(); document.execCommand('copy');
     ta.remove();
   });
+}
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function showFillBanner(message) {
@@ -215,7 +226,7 @@ async function autoFillForm() {
 // ─────────────────────────────────────────────
 async function answerQuestions() {
   if (!state.activeProfile) return;
-  setLoading('answer-questions-btn', true);
+  setLoading('answer-questions-btn', true, '🔍 Analysing fit...');
 
   try {
     const result = await sendToContent({ type: 'GET_QUESTIONS' });
@@ -233,22 +244,60 @@ async function answerQuestions() {
       qaEmpty.style.display = 'none';
       qaList.style.display = 'flex';
 
+      // Run ONE shared analyst call for ALL questions on this page
+      const analysis = await runAnalysis(state.activeProfile, state.jd);
+      // Update label mid-flight WITHOUT overwriting originalContent
+      const ansBtn = document.getElementById('answer-questions-btn');
+      if (ansBtn) ansBtn.innerHTML = `<span class="spinner"></span> ✍️ Writing answers...`;
+
       for (const q of questions) {
-        const answer = await generateAnswer(q.question);
+        const answer = await generateAnswer(q.question, analysis);
         const item = document.createElement('div');
         item.className = 'qa-item';
+        const escapedQ = escapeHTML(q.question.substring(0, 120)) + (q.question.length > 120 ? '...' : '');
+        const escapedA = escapeHTML(answer);
+        
         item.innerHTML = `
-          <div class="qa-question">❓ ${q.question.substring(0, 120)}${q.question.length > 120 ? '...' : ''}</div>
-          <div class="qa-answer">${answer}</div>
-          <button class="qa-fill-btn" data-id="${q.id}" data-answer="${encodeURIComponent(answer)}">
-            Fill this answer ↗
-          </button>`;
-        item.querySelector('.qa-fill-btn').addEventListener('click', async (e) => {
+          <div class="qa-question">❓ ${escapedQ}</div>
+          <div class="qa-answer">${escapedA}</div>
+          <div class="qa-actions">
+            <input type="text" class="feedback-input qa-feedback-input" placeholder="Feedback...">
+            <button class="btn btn-secondary qa-regen-btn" title="Regenerate">↻</button>
+            <button class="qa-fill-btn" data-id="${escapeHTML(q.id)}" data-answer="${escapeHTML(encodeURIComponent(answer))}" style="margin-left:auto; width:auto; border-top:none;">
+              Fill ↗
+            </button>
+          </div>`;
+          
+        const fillBtn = item.querySelector('.qa-fill-btn');
+        fillBtn.addEventListener('click', async (e) => {
           const qId = e.currentTarget.dataset.id;
           const ans = decodeURIComponent(e.currentTarget.dataset.answer);
           await sendToContent({ type: 'FILL_ANSWER', questionId: qId, answer: ans });
           showFillBanner('✅ Answer filled!');
         });
+
+        const regenBtn = item.querySelector('.qa-regen-btn');
+        const feedbackInput = item.querySelector('.qa-feedback-input');
+        
+        regenBtn.addEventListener('click', async (e) => {
+          regenBtn.textContent = '⏳';
+          regenBtn.disabled = true;
+          try {
+            const feedback = feedbackInput.value.trim() || null;
+            // Reuse cached analysis; pass feedback for revision
+            const cachedAnalysis = state.analysisCache?.data || null;
+            const newAnswer = await generateAnswer(q.question, cachedAnalysis, feedback);
+            item.querySelector('.qa-answer').textContent = newAnswer;
+            fillBtn.dataset.answer = encodeURIComponent(newAnswer);
+            feedbackInput.value = '';
+          } catch (err) {
+            showFillBanner('❌ Error regenerating answer.');
+          } finally {
+            regenBtn.textContent = '↻';
+            regenBtn.disabled = false;
+          }
+        });
+        
         qaList.appendChild(item);
       }
     }
@@ -258,6 +307,7 @@ async function answerQuestions() {
     qaPanel.classList.add('open');
   } catch (e) {
     showFillBanner('❌ Error detecting questions.');
+    console.error('[JobAssist] Answer questions error:', e);
   } finally {
     setLoading('answer-questions-btn', false);
   }
@@ -268,15 +318,34 @@ async function answerQuestions() {
 // ─────────────────────────────────────────────
 async function generateCoverLetter() {
   if (!state.activeProfile) return;
-  setLoading('gen-cover-letter-btn', true);
+  
+  const regenBtn = document.getElementById('regen-cover-letter');
+  const feedbackInput = document.getElementById('cl-feedback-input');
+  let feedback = null;
+  if (feedbackInput?.value) {
+    feedback = feedbackInput.value.trim();
+    regenBtn.textContent = '⏳';
+    regenBtn.disabled = true;
+  }
+
+  setLoading('gen-cover-letter-btn', true, '🔍 Analysing fit...');
 
   try {
-    const coverLetter = await generateCoverLetterText();
+    // generateCoverLetterText internally calls runAnalysis then writes
+    // Update the button text mid-flight to show the writing stage
+    setTimeout(() => {
+      const btn = document.getElementById('gen-cover-letter-btn');
+      if (btn && btn.disabled) {
+        btn.innerHTML = `<span class="spinner"></span> ✍️ Writing...`;
+      }
+    }, 2500);
+
+    const coverLetter = await generateCoverLetterText(feedback);
 
     const panel = document.getElementById('cover-letter-panel');
     document.getElementById('cover-letter-text').textContent = coverLetter;
+    if (feedbackInput) feedbackInput.value = '';
 
-    // Close QA if open
     document.getElementById('qa-panel').classList.remove('open');
     panel.classList.add('open');
   } catch (e) {
@@ -284,65 +353,161 @@ async function generateCoverLetter() {
     console.error('[JobAssist] Cover letter error:', e);
   } finally {
     setLoading('gen-cover-letter-btn', false);
+    regenBtn.textContent = '↻ Regenerate';
+    regenBtn.disabled = false;
   }
 }
 
 // ─────────────────────────────────────────────
 // AI / Template Generation
 // ─────────────────────────────────────────────
-async function generateCoverLetterText() {
+
+// Stage 1: Analyst — reasons about fit before any writing happens
+function buildAnalystPrompt(profile, jd) {
+  const p = profile;
+  const info = p.personalInfo || {};
+  return `You are an expert career strategist and talent analyst. Your job is to perform a deep strategic analysis of a candidate's profile against a specific job description.
+
+Analyze the following and return ONLY a valid JSON object — no markdown, no prose, no code fences.
+
+Candidate Profile:
+- Name: ${info.fullName || p.name}
+- Summary: ${p.summary || ''}
+- Skills: ${(p.skills || []).join(', ')}
+- Experience:\n${(p.experience || []).map(e => `  * ${e.title} at ${e.company} (${e.startDate}–${e.endDate}): ${e.description}`).join('\n')}
+- Additional Context: ${p.additionalContext || ''}
+
+${jd ? `Job Description:\n${jd.text?.substring(0, 3000)}\n\nCompany: ${jd.company || 'Unknown'}\nRole: ${jd.title || 'Unknown'}` : `Target Role: ${p.targetRole}`}
+
+Return a JSON object with EXACTLY these keys:
+{
+  "topOverlap": ["array of strings — specific resume items that directly match JD requirements, be concrete not generic"],
+  "bestExperiencesToLead": ["array of 1-2 company names from the profile that are most relevant to THIS role"],
+  "narrativeArc": "1 sentence — how the candidate's career trajectory leads naturally to this role",
+  "genuineMotivation": "1-2 sentences — a specific, honest reason why THIS company/role is a good fit based on their actual background, NOT generic passion statements",
+  "hiddenStrengths": ["array — skills or experiences the candidate may be underselling that are highly relevant"],
+  "redFlags": ["array — potential recruiter concerns to address proactively. Empty array if none."],
+  "missingSkills": ["array — required JD skills absent from the profile. Empty array if none."],
+  "writingPriorities": "2-3 sentences of specific instructions for the writer: what to lead with, what to explain, what to avoid, what angle creates the strongest case"
+}`;
+}
+
+// Cache key based on jd url + profile id so we don't re-analyse on every regen
+function getAnalysisCacheKey(profile, jd) {
+  return `${profile.id || profile.name}::${jd?.url || jd?.company || 'nojd'}`;
+}
+
+async function runAnalysis(profile, jd) {
+  if (!state.settings?.apiKey) return null; // offline mode — skip analysis
+
+  const cacheKey = getAnalysisCacheKey(profile, jd);
+  if (state.analysisCache?.key === cacheKey) {
+    console.log('[JobAssist] Using cached analysis.');
+    return state.analysisCache.data;
+  }
+
+  console.log('[JobAssist] Running analyst pass...');
+  try {
+    const raw = await callOpenAI(buildAnalystPrompt(profile, jd), null, 600);
+    // Strip any accidental markdown fences
+    const cleaned = raw.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+    const analysis = JSON.parse(cleaned);
+    state.analysisCache = { key: cacheKey, data: analysis };
+    console.log('[JobAssist] Analysis result:', analysis);
+    return analysis;
+  } catch (err) {
+    console.warn('[JobAssist] Analyst pass failed — falling back to single-pass generation.', err);
+    return null;
+  }
+}
+
+async function generateCoverLetterText(feedback = null) {
   const profile = state.activeProfile;
   const jd = state.jd;
 
   if (state.settings?.apiKey) {
-    return await callOpenAI(buildCoverLetterPrompt(profile, jd), profile.systemPrompt);
+    const analysis = await runAnalysis(profile, jd);
+    return await callOpenAI(buildCoverLetterPrompt(profile, jd, analysis, feedback), profile.systemPrompt);
   }
   return templateCoverLetter(profile, jd);
 }
 
-async function generateAnswer(question) {
+async function generateAnswer(question, analysis = null, feedback = null) {
   const profile = state.activeProfile;
   const jd = state.jd;
 
   if (state.settings?.apiKey) {
-    return await callOpenAI(buildAnswerPrompt(question, profile, jd), profile.systemPrompt);
+    return await callOpenAI(buildAnswerPrompt(question, profile, jd, analysis, feedback), profile.systemPrompt);
   }
   return templateAnswer(question, profile);
 }
 
-async function callOpenAI(userPrompt, systemPrompt = null) {
+async function callOpenAI(userPrompt, systemPrompt = null, maxTokens = 800, retries = 3) {
   const messages = [];
   if (systemPrompt) {
     messages.push({ role: 'system', content: systemPrompt });
   }
   messages.push({ role: 'user', content: userPrompt });
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${state.settings.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: state.settings.model || 'gpt-4o-mini',
-      messages: messages,
-      max_tokens: 800,
-      temperature: 0.7,
-    }),
-  });
+  for (let i = 0; i < retries; i++) {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: state.settings.model || 'gpt-4o-mini',
+        messages: messages,
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.choices[0].message.content.trim();
+    }
+
+    let errorMsg = `Status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error?.message) errorMsg = errorData.error.message;
+    } catch (e) {
+      // ignore JSON parse error on non-ok responses
+    }
+
+    // Retry on 429 (Rate Limit) or 5xx (Server Error)
+    if (response.status === 429 || response.status >= 500) {
+      if (i === retries - 1) throw new Error(`OpenAI API error: ${errorMsg}`);
+      const delayMs = Math.pow(2, i) * 1500; // 1.5s, 3s
+      console.warn(`[JobAssist] OpenAI error (${response.status}). Retrying in ${delayMs}ms...`, errorMsg);
+      await new Promise(r => setTimeout(r, delayMs));
+    } else {
+      // 400, 401, 403, etc — do not retry
+      throw new Error(`OpenAI API error: ${errorMsg}`);
+    }
   }
-
-  const data = await response.json();
-  return data.choices[0].message.content.trim();
 }
 
-function buildCoverLetterPrompt(profile, jd) {
+function buildStrategicBrief(analysis) {
+  if (!analysis) return '';
+  const lines = [];
+  if (analysis.topOverlap?.length) lines.push(`Key Overlaps: ${analysis.topOverlap.join(' | ')}`);
+  if (analysis.bestExperiencesToLead?.length) lines.push(`Lead with these experiences: ${analysis.bestExperiencesToLead.join(', ')}`);
+  if (analysis.narrativeArc) lines.push(`Career narrative: ${analysis.narrativeArc}`);
+  if (analysis.genuineMotivation) lines.push(`Motivation angle: ${analysis.genuineMotivation}`);
+  if (analysis.hiddenStrengths?.length) lines.push(`Hidden strengths to surface: ${analysis.hiddenStrengths.join(', ')}`);
+  if (analysis.redFlags?.length) lines.push(`Address proactively: ${analysis.redFlags.join(', ')}`);
+  if (analysis.missingSkills?.length) lines.push(`Skills not on profile (don't fabricate): ${analysis.missingSkills.join(', ')}`);
+  if (analysis.writingPriorities) lines.push(`Writing strategy: ${analysis.writingPriorities}`);
+  return lines.length ? `\n\nSTRATEGIC BRIEF (from pre-analysis — follow this exactly):\n${lines.join('\n')}` : '';
+}
+
+function buildCoverLetterPrompt(profile, jd, analysis = null, feedback = null) {
   const p = profile;
   const info = p.personalInfo || {};
-  return `Write a professional, compelling cover letter for a job application.
+  let basePrompt = `Write a cover letter for a job application.
 
 Applicant Profile:
 - Name: ${info.fullName || p.name}
@@ -354,38 +519,51 @@ Applicant Profile:
 ${p.resumeText ? `\nResume Summary (first 1000 chars):\n${p.resumeText.substring(0, 1000)}` : ''}
 
 ${jd ? `Job Description:\n${jd.text?.substring(0, 2000)}\n\nCompany: ${jd.company || 'the company'}\nRole: ${jd.title || p.targetRole}` : `Applying for: ${p.targetRole}`}
+${buildStrategicBrief(analysis)}
 
 Write a 2-3 paragraph cover letter following these strict rules:
 1. Do NOT write a traditional corporate cover letter. Avoid standard openings (e.g., "I am writing to apply") and generic closings (e.g., "Thank you for considering").
 2. Open with a strong, grounded technical hook connecting to the company's specific product or problem.
-3. Highlight only the 1-2 most relevant achievements from the experience provided. Do not list everything.
+3. Lead with the experiences identified in the Strategic Brief. Do not list everything.
 4. Close abruptly and confidently (e.g. "I'd love to chat about building this at [Company].").
-5. Adopt the applicant's Custom Persona exactly as provided. DO NOT use generic AI cover letter language.`;
+5. Adopt the applicant's Custom Persona exactly. DO NOT use generic AI cover letter language.`;
+
+  if (feedback) {
+    basePrompt += `\n\nCRITICAL INSTRUCTION FOR REVISION:\nThe user rejected your previous cover letter and provided this feedback. You MUST rewrite completely incorporating this: "${feedback}"`;
+  }
+  return basePrompt;
 }
 
-function buildAnswerPrompt(question, profile, jd) {
+function buildAnswerPrompt(question, profile, jd, analysis = null, feedback = null) {
   const p = profile;
   const info = p.personalInfo || {};
-  return `You are helping a job applicant answer an application question. Write a concise, professional answer (2-4 sentences max unless more is needed).
+  let basePrompt = `You are helping a job applicant answer an application question. Write a concise, direct answer (2-4 sentences max unless more is specifically needed).
 
 Applicant: ${info.fullName || p.name}
-Target Role: ${p.targetRole}
+Target Role: ${jd?.title || p.targetRole}
+Applying to: ${jd?.company || 'the company'}
 Skills: ${(p.skills || []).join(', ')}
 Experience: ${(p.experience || []).map(e => `${e.title} at ${e.company}`).join(', ')}
 Summary: ${p.summary || ''}
 Additional Context: ${p.additionalContext || ''}
 ${p.systemPrompt ? `Custom Persona / Rules: ${p.systemPrompt}` : ''}
-${jd ? `\nJob they're applying to: ${jd.title} at ${jd.company}` : ''}
+${buildStrategicBrief(analysis)}
 
 Question: "${question}"
 
 CRITICAL INSTRUCTIONS:
-1. DIRECTLY answer the question asked. Do NOT just lazily summarize the applicant's resume or objective.
-2. If the question asks "Why this role/company" or "What excites you", explicitly state what excites them about the specific company or role responsibilities, mapping it back to their background (e.g. "I am excited to bring my focus on execution speed to help [Company] solve [Problem]").
-3. If the question asks for salary expectations, mention a specific range based on location (e.g. 100,000 EUR or 40 LPA INR), NEVER mention "open to discussion".
-4. Adopt the applicant's Custom Persona if provided.
+1. DIRECTLY answer the question asked. Do NOT just summarize the applicant's resume.
+2. If asking "Why this role/company" or "What excites you", use the genuineMotivation and topOverlap from the Strategic Brief to give a specific, grounded answer.
+3. If asking for salary expectations, mention a specific range based on location (e.g. 100,000 EUR or 40 LPA INR). NEVER say "open to discussion".
+4. Lead with the bestExperiencesToLead from the Strategic Brief when relevant.
+5. Adopt the applicant's Custom Persona if provided.
 
-Answer (concise, first-person, professional, tailored to their background, answering the exact question):`;
+Answer (first-person, direct, tailored to the specific question):`;
+
+  if (feedback) {
+    basePrompt += `\n\nCRITICAL INSTRUCTION FOR REVISION:\nThe user rejected your previous answer. Rewrite completely following this feedback: "${feedback}"`;
+  }
+  return basePrompt;
 }
 
 function templateCoverLetter(profile, jd) {
@@ -472,6 +650,7 @@ async function init() {
   document.getElementById('profile-select').addEventListener('change', async (e) => {
     const id = e.target.value;
     state.activeProfile = state.profiles.find(p => p.id === id) || null;
+    state.analysisCache = null; // invalidate cache on profile change
     await Storage.setActiveProfileId(id || null);
     document.getElementById('profile-avatar').textContent = state.activeProfile ? getInitials(state.activeProfile.name) : '?';
     updateMainUI();

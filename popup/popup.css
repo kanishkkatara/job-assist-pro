@@ -216,6 +216,32 @@ body {
 }
 .qa-fill-btn:hover { background: rgba(108,99,255,0.08); }
 
+.qa-actions {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.02);
+  border-top: 1px solid var(--border);
+}
+
+.feedback-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text);
+  font-family: inherit;
+  transition: var(--tr);
+}
+.feedback-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.feedback-group {
+  display: flex; gap: 8px; flex: 1;
+}
+
 /* ─── Fill Result Banner ─── */
 .fill-banner {
   display: none;

@@ -11,7 +11,15 @@ chrome.runtime.onInstalled.addListener(() => {
   if (chrome.action) {
     chrome.action.setPopup({ popup: "" }).catch(() => {});
   }
+
+  // Register context menu for inline generation
+  chrome.contextMenus.create({
+    id: "jobassist-generate-answer",
+    title: "Generate Answer with JobAssist",
+    contexts: ["editable"]
+  });
 });
+
 // Message router between popup <-> content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GET_ACTIVE_TAB') {
@@ -97,3 +105,99 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     chrome.runtime.sendMessage({ type: 'TAB_UPDATED', tab }).catch(() => {});
   }
 });
+
+// ─────────────────────────────────────────────
+// Context Menu: Inline Generation
+// ─────────────────────────────────────────────
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === "jobassist-generate-answer" && tab.id) {
+    try {
+      // 1. Tell content script to show loading state
+      await chrome.tabs.sendMessage(tab.id, { type: "INLINE_GENERATION_START" });
+
+      // 2. Fetch profile, settings, and JD
+      const { activeProfileId, profiles, settings } = await chrome.storage.local.get({
+        activeProfileId: null,
+        profiles: [],
+        settings: { apiKey: '', model: 'gpt-4o-mini' }
+      });
+      const profile = profiles.find(p => p.id === activeProfileId);
+      if (!profile || !settings.apiKey) {
+        throw new Error("No active profile or missing API key.");
+      }
+      
+      const { currentJD } = await chrome.storage.session.get({ currentJD: null });
+
+      // 3. Get the question text from the content script
+      const { questionText } = await chrome.tabs.sendMessage(tab.id, { type: "GET_ACTIVE_QUESTION" });
+      if (!questionText) throw new Error("Could not detect question text.");
+
+      // 4. Generate Answer
+      const prompt = buildAnswerPrompt(questionText, profile, currentJD);
+      const answer = await callOpenAI(prompt, profile.systemPrompt, settings);
+
+      // 5. Inject answer back into the page
+      await chrome.tabs.sendMessage(tab.id, { type: "INLINE_GENERATION_SUCCESS", answer });
+    } catch (e) {
+      console.error("[JobAssist] Context Menu Error:", e);
+      chrome.tabs.sendMessage(tab.id, { type: "INLINE_GENERATION_ERROR", error: e.message }).catch(()=>{});
+    }
+  }
+});
+
+// AI Helpers (duplicated for context menu independence)
+async function callOpenAI(userPrompt, systemPrompt, settings, maxTokens = 800, retries = 3) {
+  const messages = [];
+  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+  messages.push({ role: 'user', content: userPrompt });
+
+  for (let i = 0; i < retries; i++) {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model || 'gpt-4o-mini',
+        messages,
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.choices[0].message.content.trim();
+    }
+    
+    if (response.status === 429 || response.status >= 500) {
+      if (i === retries - 1) throw new Error(`Status ${response.status}`);
+      await new Promise(r => setTimeout(r, Math.pow(2, i) * 1500));
+    } else {
+      throw new Error(`Status ${response.status}`);
+    }
+  }
+}
+
+function buildAnswerPrompt(question, profile, jd) {
+  const p = profile;
+  const info = p.personalInfo || {};
+  return `You are helping a job applicant answer an application question inline. Write a concise, direct answer (2-4 sentences max unless more is specifically needed).
+
+Applicant: ${info.fullName || p.name}
+Target Role: ${jd?.title || p.targetRole}
+Applying to: ${jd?.company || 'the company'}
+Skills: ${(p.skills || []).join(', ')}
+Experience: ${(p.experience || []).map(e => `${e.title} at ${e.company}`).join(', ')}
+Summary: ${p.summary || ''}
+Additional Context: ${p.additionalContext || ''}
+
+Question: "${question}"
+
+CRITICAL INSTRUCTIONS:
+1. DIRECTLY answer the question asked. Do NOT just summarize the resume.
+2. Adopt the applicant's Custom Persona if provided.
+
+Answer (first-person, direct, tailored to the specific question):`;
+}

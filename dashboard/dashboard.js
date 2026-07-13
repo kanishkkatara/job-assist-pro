@@ -74,6 +74,16 @@ function getInitials(name) {
   return name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
 }
 
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderProfileCard(profile) {
   const card = document.createElement('div');
   card.className = 'profile-card';
@@ -84,13 +94,13 @@ function renderProfileCard(profile) {
   const expCount = (profile.experience || []).length;
 
   card.innerHTML = `
-    <div class="profile-card-avatar">${getInitials(profile.name)}</div>
-    <div class="profile-card-name">${profile.name || 'Unnamed Profile'}</div>
-    <div class="profile-card-role">${profile.targetRole || 'No role set'}</div>
+    <div class="profile-card-avatar">${escapeHTML(getInitials(profile.name))}</div>
+    <div class="profile-card-name">${escapeHTML(profile.name || 'Unnamed Profile')}</div>
+    <div class="profile-card-role">${escapeHTML(profile.targetRole || 'No role set')}</div>
     <div class="profile-card-meta">
       ${hasResume ? '<span class="resume-badge">📄 Resume Uploaded</span>' : '<span class="resume-badge missing">⚠ No Resume</span>'}
       ${expCount > 0 ? `<span class="profile-card-tag">💼 ${expCount} job${expCount > 1 ? 's' : ''}</span>` : ''}
-      ${skills.map(s => `<span class="profile-card-tag">${s}</span>`).join('')}
+      ${skills.map(s => `<span class="profile-card-tag">${escapeHTML(s)}</span>`).join('')}
     </div>
     <div class="profile-card-actions">
       <button class="btn btn-secondary btn-sm edit-btn" data-id="${profile.id}">✏️ Edit</button>
@@ -353,7 +363,7 @@ function renderSkillTags() {
   currentSkills.forEach((skill, i) => {
     const tag = document.createElement('span');
     tag.className = 'skill-tag';
-    tag.innerHTML = `${skill} <button data-i="${i}">×</button>`;
+    tag.innerHTML = `${escapeHTML(skill)} <button data-i="${i}">×</button>`;
     tag.querySelector('button').addEventListener('click', () => {
       currentSkills.splice(i, 1);
       renderSkillTags();
@@ -387,18 +397,18 @@ function renderExperienceList() {
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Job Title</label>
-          <input class="form-input" value="${exp.title || ''}" placeholder="Software Engineer" data-field="title" data-i="${i}" /></div>
+          <input class="form-input" value="${escapeHTML(exp.title || '')}" placeholder="Software Engineer" data-field="title" data-i="${i}" /></div>
         <div class="form-group"><label class="form-label">Company</label>
-          <input class="form-input" value="${exp.company || ''}" placeholder="Google" data-field="company" data-i="${i}" /></div>
+          <input class="form-input" value="${escapeHTML(exp.company || '')}" placeholder="Google" data-field="company" data-i="${i}" /></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Start Date</label>
-          <input class="form-input" value="${exp.startDate || ''}" placeholder="Jan 2022" data-field="startDate" data-i="${i}" /></div>
+          <input class="form-input" value="${escapeHTML(exp.startDate || '')}" placeholder="Jan 2022" data-field="startDate" data-i="${i}" /></div>
         <div class="form-group"><label class="form-label">End Date</label>
-          <input class="form-input" value="${exp.endDate || ''}" placeholder="Present" data-field="endDate" data-i="${i}" /></div>
+          <input class="form-input" value="${escapeHTML(exp.endDate || '')}" placeholder="Present" data-field="endDate" data-i="${i}" /></div>
       </div>
       <div class="form-group"><label class="form-label">Description</label>
-        <textarea class="form-textarea" rows="3" placeholder="Key responsibilities and achievements..." data-field="description" data-i="${i}">${exp.description || ''}</textarea></div>
+        <textarea class="form-textarea" rows="3" placeholder="Key responsibilities and achievements..." data-field="description" data-i="${i}">${escapeHTML(exp.description || '')}</textarea></div>
     `;
     item.querySelector('button[data-i]').addEventListener('click', () => {
       currentExperience.splice(i, 1);
@@ -429,15 +439,15 @@ function renderEducationList() {
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Degree</label>
-          <input class="form-input" value="${edu.degree || ''}" placeholder="B.S. Computer Science" data-field="degree" data-i="${i}" /></div>
+          <input class="form-input" value="${escapeHTML(edu.degree || '')}" placeholder="B.S. Computer Science" data-field="degree" data-i="${i}" /></div>
         <div class="form-group"><label class="form-label">Institution</label>
-          <input class="form-input" value="${edu.institution || ''}" placeholder="MIT" data-field="institution" data-i="${i}" /></div>
+          <input class="form-input" value="${escapeHTML(edu.institution || '')}" placeholder="MIT" data-field="institution" data-i="${i}" /></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Year</label>
-          <input class="form-input" value="${edu.year || ''}" placeholder="2020" data-field="year" data-i="${i}" /></div>
+          <input class="form-input" value="${escapeHTML(edu.year || '')}" placeholder="2020" data-field="year" data-i="${i}" /></div>
         <div class="form-group"><label class="form-label">GPA (optional)</label>
-          <input class="form-input" value="${edu.gpa || ''}" placeholder="3.8/4.0" data-field="gpa" data-i="${i}" /></div>
+          <input class="form-input" value="${escapeHTML(edu.gpa || '')}" placeholder="3.8/4.0" data-field="gpa" data-i="${i}" /></div>
       </div>
     `;
     item.querySelector('button[data-i]').addEventListener('click', () => {
@@ -472,8 +482,8 @@ function renderCustomFieldsList() {
     el.className = 'list-item';
     el.innerHTML = `
       <div class="list-item-content">
-        <div class="list-item-title">${key}</div>
-        <div class="list-item-sub">${currentCustomFields[key]}</div>
+        <div class="list-item-title">${escapeHTML(key)}</div>
+        <div class="list-item-sub">${escapeHTML(currentCustomFields[key])}</div>
       </div>
       <div class="list-item-actions">
         <button class="icon-btn del-btn" title="Delete">🗑️</button>
@@ -570,7 +580,7 @@ async function handleResumeFile(file) {
       <div class="upload-success">
         <span class="file-icon">📄</span>
         <div class="file-info">
-          <div class="file-name">${file.name}</div>
+          <div class="file-name">${escapeHTML(file.name)}</div>
           <div class="file-pages">${pages} page${pages > 1 ? 's' : ''} • ${Math.round(text.length / 5)} words extracted</div>
         </div>
         <button class="btn btn-danger btn-sm" id="remove-resume-btn">Remove</button>

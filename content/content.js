@@ -25,9 +25,9 @@
     const url = window.location.href;
 
     // Try LinkedIn specific selectors
-    const linkedinJobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title, h1.t-24');
-    const linkedinCompany = document.querySelector('.job-details-jobs-unified-top-card__company-name, .topcard__org-name-link');
-    const linkedinDesc = document.querySelector('.jobs-description__content, .job-view-layout');
+    const linkedinJobTitle = document.querySelector('.job-details-jobs-unified-top-card__job-title, h1.t-24, h3.base-search-card__title, .job-title, .t-24.t-bold');
+    const linkedinCompany = document.querySelector('.job-details-jobs-unified-top-card__company-name, .topcard__org-name-link, h4.base-search-card__subtitle, .job-details-jobs-unified-top-card__primary-description a');
+    const linkedinDesc = document.querySelector('#job-details, .jobs-description__content, .jobs-description-content__text, .show-more-less-html__markup, .job-view-layout');
 
     // Try Greenhouse selectors
     const greenhouseTitle = document.querySelector('#header h1, .app-title');
@@ -157,22 +157,46 @@
   }
 
   function detectOpenQuestions() {
-    const textareas = Array.from(document.querySelectorAll('textarea')).filter(
-      el => el.offsetParent !== null
+    const textareas = Array.from(document.querySelectorAll('textarea, div[contenteditable="true"]')).filter(
+      el => el.offsetParent !== null && !el.disabled
     );
 
     const questions = [];
     for (const ta of textareas) {
-      // Find the question text near this textarea
-      let questionText = ta.getAttribute('placeholder') || ta.getAttribute('aria-label') || '';
+      let questionText = '';
+      
+      // 1. Try to find an explicit <label> via the `id` attribute
+      if (ta.id) {
+        const labelEl = document.querySelector(`label[for="${CSS.escape(ta.id)}"]`);
+        if (labelEl) questionText = labelEl.innerText.trim();
+      }
+
+      // 2. Try looking at previous siblings up the DOM tree (handles obfuscated classes like Ashby)
       if (!questionText) {
-        const parent = ta.closest('div, li, section');
-        if (parent) {
-          const label = parent.querySelector('label, p, h3, h4, strong, legend');
-          if (label) questionText = label.innerText.trim();
+        let node = ta;
+        for (let i = 0; i < 4 && node; i++) {
+          if (node.previousElementSibling) {
+            const prev = node.previousElementSibling;
+            // Check if it's a typical label/heading element, or a generic div with text
+            const text = prev.innerText?.trim();
+            if (text && text.length > 5) {
+              questionText = text;
+              break;
+            }
+          }
+          node = node.parentElement;
         }
       }
-      if (questionText && questionText.length > 10) {
+
+      // 3. Fallbacks
+      if (!questionText) questionText = ta.getAttribute('aria-label') || '';
+      if (!questionText) questionText = ta.getAttribute('placeholder') || '';
+
+      // Clean up common asterisks
+      questionText = questionText.replace(/\*/g, '').trim();
+
+      // Only accept if it looks like a real question (ignores generic placeholders like "Type here")
+      if (questionText && questionText.length > 8 && !questionText.match(/^(type here|enter text|optional)/i)) {
         questions.push({
           id: ta.id || ta.name || `textarea_${questions.length}`,
           question: questionText.substring(0, 300),
@@ -373,6 +397,12 @@
     return { filled, total: fields.length };
   }
 
+  // Track right-clicks for the context menu
+  let lastActiveElement = null;
+  document.addEventListener('contextmenu', (e) => {
+    lastActiveElement = e.target;
+  }, true);
+
   // Auto-Learn fields that user types in
   document.addEventListener('change', (e) => {
     const el = e.target;
@@ -448,6 +478,67 @@
 
     if (message.type === 'PING') {
       sendResponse({ alive: true });
+      return true;
+    }
+
+    if (message.type === 'INLINE_GENERATION_START') {
+      if (lastActiveElement) {
+        lastActiveElement.dataset.originalPlaceholder = lastActiveElement.getAttribute('placeholder') || '';
+        lastActiveElement.setAttribute('placeholder', '✨ Generating answer...');
+        lastActiveElement.style.opacity = '0.7';
+      }
+      sendResponse({ success: true });
+      return true;
+    }
+
+    if (message.type === 'GET_ACTIVE_QUESTION') {
+      let questionText = '';
+      if (lastActiveElement) {
+        let node = lastActiveElement;
+        if (node.id) {
+          const labelEl = document.querySelector(`label[for="${CSS.escape(node.id)}"]`);
+          if (labelEl) questionText = labelEl.innerText.trim();
+        }
+        if (!questionText) {
+          for (let i = 0; i < 4 && node; i++) {
+            if (node.previousElementSibling) {
+              const text = node.previousElementSibling.innerText?.trim();
+              if (text && text.length > 5) {
+                questionText = text;
+                break;
+              }
+            }
+            node = node.parentElement;
+          }
+        }
+        if (!questionText) questionText = lastActiveElement.getAttribute('aria-label') || '';
+        if (!questionText) questionText = lastActiveElement.getAttribute('placeholder') || '';
+        questionText = questionText.replace(/\*/g, '').trim();
+      }
+      sendResponse({ questionText });
+      return true;
+    }
+
+    if (message.type === 'INLINE_GENERATION_SUCCESS') {
+      if (lastActiveElement) {
+        setNativeValue(lastActiveElement, message.answer);
+        lastActiveElement.setAttribute('placeholder', lastActiveElement.dataset.originalPlaceholder || '');
+        lastActiveElement.style.opacity = '1';
+        lastActiveElement.style.transition = 'box-shadow 0.3s ease';
+        lastActiveElement.style.boxShadow = '0 0 0 2px #6C63FF';
+        setTimeout(() => { lastActiveElement.style.boxShadow = ''; }, 2000);
+      }
+      sendResponse({ success: true });
+      return true;
+    }
+
+    if (message.type === 'INLINE_GENERATION_ERROR') {
+      if (lastActiveElement) {
+        lastActiveElement.setAttribute('placeholder', lastActiveElement.dataset.originalPlaceholder || '');
+        lastActiveElement.style.opacity = '1';
+        alert(`JobAssist Error: ${message.error}`);
+      }
+      sendResponse({ success: true });
       return true;
     }
   });
