@@ -38,7 +38,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) {
           await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
+            target: { tabId: tab.id, allFrames: true },
             files: [contentUrl],
           });
           sendResponse({ success: true });
@@ -53,15 +53,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'RELAY_TO_CONTENT') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, message.payload, (response) => {
-          if (chrome.runtime.lastError) {
-            sendResponse({ error: chrome.runtime.lastError.message });
-          } else {
-            sendResponse(response);
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      const tab = tabs[0];
+      if (tab?.id) {
+        try {
+          const frames = await chrome.webNavigation.getAllFrames({ tabId: tab.id });
+          let successResponse = null;
+          let lastError = null;
+
+          for (const frame of frames) {
+            try {
+              const res = await chrome.tabs.sendMessage(tab.id, message.payload, { frameId: frame.frameId });
+              if (res && !res.error) {
+                successResponse = res;
+                // If it's a fill form or attach resume and it succeeded in this frame, we can consider it a success
+                // We'll keep sending to others just in case, but usually we just want at least one success
+              }
+            } catch (err) {
+              lastError = err;
+            }
           }
-        });
+          
+          if (successResponse) {
+            sendResponse(successResponse);
+          } else {
+            sendResponse({ error: lastError?.message || 'No frames responded successfully' });
+          }
+        } catch (err) {
+          // Fallback if webNavigation is not permitted
+          chrome.tabs.sendMessage(tab.id, message.payload, (response) => {
+            if (chrome.runtime.lastError) {
+              sendResponse({ error: chrome.runtime.lastError.message });
+            } else {
+              sendResponse(response || {});
+            }
+          });
+        }
       } else {
         sendResponse({ error: 'No active tab' });
       }
@@ -182,9 +209,88 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }, 500);
     }
   }
+  if (message.type === 'GENERATE_LINKEDIN_OUTREACH') {
+    (async () => {
+      try {
+        const { activeProfileId, profiles, settings } = await chrome.storage.local.get({
+          activeProfileId: null,
+          profiles: [],
+          settings: { apiKey: '', model: 'gpt-4o-mini' }
+        });
+        
+        const profile = profiles.find(p => p.id === activeProfileId);
+        if (!profile || !settings.apiKey) {
+          sendResponse({ error: 'No active profile or missing API key' });
+          return;
+        }
+
+        const { currentJD } = await chrome.storage.session.get({ currentJD: null });
+        
+        const prompt = `You are an expert career coach helping a candidate write a cold outreach message on LinkedIn to a recruiter or hiring manager. 
+        
+Target Person: ${message.targetName} (${message.targetHeadline})
+Target Job: ${currentJD ? currentJD.title + ' at ' + currentJD.company : profile.targetRole}
+Candidate Name: ${profile.personalInfo?.fullName || profile.name}
+Candidate Background: ${(profile.experience || []).map(e => e.title + ' at ' + e.company).join(', ')}
+
+Write a highly personalized, non-cringe, concise LinkedIn DM (under 500 characters) asking for a brief chat or referral. Mention one specific detail about their background if relevant, and tie it to the candidate's fit for the role. Keep it extremely professional but conversational. Do NOT use placeholders like [Insert Name], use the actual names provided.`;
+
+        const draft = await callOpenAI(prompt, "You are a world-class executive networker.", settings, 200);
+        sendResponse({ draft });
+      } catch (e: any) {
+        sendResponse({ error: e.message });
+      }
+    })();
+    return true;
+  }
 });
 
 let copilotAbortController = null;
+
+// ─────────────────────────────────────────────
+// V4: Auto-Status Updates
+// ─────────────────────────────────────────────
+import { getApplications, updateApplicationStatus } from '../src/utils/db';
+
+chrome.webNavigation.onCompleted.addListener(async (details) => {
+  if (details.frameId === 0) { // Top-level navigation
+    const url = details.url.toLowerCase();
+    
+    // Check if it's a success/thanks page for common ATS platforms
+    if (
+      url.includes('greenhouse.io') && url.includes('/thanks') ||
+      url.includes('jobs.lever.co') && url.includes('/thanks') ||
+      url.includes('myworkdayjobs.com') && url.includes('application-submitted')
+    ) {
+      try {
+        const jobs = await getApplications();
+        // Since we don't know the exact job ID from the success page easily, 
+        // we heuristically look for jobs in 'Discovered' status whose URL matches the current domain.
+        // E.g., if we just applied to a Greenhouse job, the URL has greenhouse.io in it.
+        const domain = new URL(url).hostname;
+        
+        const matchingJob = jobs.find(j => 
+          j.status === 'Discovered' && 
+          j.url && 
+          new URL(j.url).hostname === domain
+        );
+        
+        if (matchingJob) {
+          await updateApplicationStatus(matchingJob.id, 'Applied');
+          // Optionally notify the user via a popup or notification
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: chrome.runtime.getURL('assets/icons/icon128.png'),
+            title: 'Application Tracked!',
+            message: `Auto-moved ${matchingJob.company} - ${matchingJob.title} to 'Applied'.`
+          });
+        }
+      } catch (e) {
+        console.error('Auto-status update failed', e);
+      }
+    }
+  }
+});
 
 async function generateLiveHintStream(transcript) {
   if (!activeCopilotTabId) return;

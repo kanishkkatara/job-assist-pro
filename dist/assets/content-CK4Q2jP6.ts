@@ -688,5 +688,115 @@
     }
   });
 
+  // ─────────────────────────────────────────────
+  // V3: LinkedIn Outreach Generator
+  // ─────────────────────────────────────────────
+  function injectLinkedInOutreachButton() {
+    if (!window.location.hostname.includes('linkedin.com') || !window.location.pathname.includes('/in/')) {
+      const existing = document.getElementById('jobassist-linkedin-outreach');
+      if (existing) existing.remove();
+      return;
+    }
+
+    if (document.getElementById('jobassist-linkedin-outreach')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'jobassist-linkedin-outreach';
+    btn.innerHTML = '✨ Draft Referral DM';
+    btn.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 2147483647;
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      color: white;
+      border: none;
+      border-radius: 9999px;
+      padding: 12px 24px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+      transition: transform 0.2s;
+    `;
+
+    btn.addEventListener('mouseenter', () => btn.style.transform = 'translateY(-2px)');
+    btn.addEventListener('mouseleave', () => btn.style.transform = 'translateY(0)');
+    
+    btn.addEventListener('click', async () => {
+      btn.innerHTML = '⏳ Drafting...';
+      try {
+        const profileName = document.querySelector('h1')?.innerText?.trim() || 'this person';
+        const headline = document.querySelector('.text-body-medium')?.innerText?.trim() || '';
+        
+        chrome.runtime.sendMessage({
+          type: 'GENERATE_LINKEDIN_OUTREACH',
+          targetName: profileName,
+          targetHeadline: headline
+        }, (response) => {
+          if (response && response.draft) {
+            // Create a small overlay to show the draft
+            showDraftOverlay(response.draft);
+            btn.innerHTML = '✨ Draft Referral DM';
+          } else {
+            alert('Error generating draft: ' + (response?.error || 'Unknown'));
+            btn.innerHTML = '✨ Draft Referral DM';
+          }
+        });
+      } catch (e) {
+        alert('Error: ' + e.message);
+        btn.innerHTML = '✨ Draft Referral DM';
+      }
+    });
+
+    document.body.appendChild(btn);
+  }
+
+  function showDraftOverlay(draftText) {
+    let container = document.getElementById('jobassist-draft-overlay');
+    if (container) container.remove();
+
+    container = document.createElement('div');
+    container.id = 'jobassist-draft-overlay';
+    container.style.cssText = `
+      position: fixed;
+      bottom: 80px;
+      left: 24px;
+      z-index: 2147483647;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      width: 350px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+      border: 1px solid #e2e8f0;
+      font-family: system-ui, -apple-system, sans-serif;
+    `;
+
+    container.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin:0; font-size:16px; color:#1e293b; font-weight:700;">📝 Outreach Draft</h3>
+        <button id="close-draft-btn" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;">&times;</button>
+      </div>
+      <textarea id="draft-textarea" style="width:100%; height:150px; padding:12px; border-radius:8px; border:1px solid #cbd5e1; font-family:inherit; font-size:14px; color:#334155; resize:none; box-sizing:border-box;">${draftText}</textarea>
+      <button id="copy-draft-btn" style="margin-top:12px; width:100%; background:#0f172a; color:white; border:none; padding:10px; border-radius:8px; font-weight:600; cursor:pointer;">Copy to Clipboard</button>
+    `;
+
+    document.body.appendChild(container);
+
+    document.getElementById('close-draft-btn').addEventListener('click', () => container.remove());
+    document.getElementById('copy-draft-btn').addEventListener('click', () => {
+      const ta = document.getElementById('draft-textarea');
+      ta.select();
+      document.execCommand('copy');
+      const btn = document.getElementById('copy-draft-btn');
+      btn.innerText = '✅ Copied!';
+      setTimeout(() => btn.innerText = 'Copy to Clipboard', 2000);
+    });
+  }
+
+  // Monitor URL changes for SPAs like LinkedIn
+  setInterval(injectLinkedInOutreachButton, 2000);
+
   console.log('[JobAssist Pro] Content script ready');
 })();

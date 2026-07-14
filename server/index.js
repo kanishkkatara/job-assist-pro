@@ -120,6 +120,38 @@ app.post('/api/object', async (req, res) => {
           reason: z.string().describe('Why this rewrite is better')
         })).describe('Specific, actionable rewrite suggestions for bullet points')
       });
+    } else if (schemaId === 'status-update') {
+      schema = z.object({
+        matchedJobId: z.string().nullable().describe('The ID of the job this email refers to. Null if cannot be determined reliably.'),
+        newStatus: z.enum(['Discovered', 'Applied', 'Interviewing', 'Offered', 'Rejected']).describe('The new status based on the email content'),
+        draftReply: z.string().describe('A professional, concise draft reply to the email')
+      });
+    } else if (schemaId === 'discovery') {
+      schema = z.object({
+        jobs: z.array(z.object({
+          title: z.string().describe('The job title'),
+          company: z.string().describe('The company name'),
+          matchScore: z.number().describe('Match score from 0 to 100'),
+          reason: z.string().describe('1 sentence why this is a good match'),
+          url: z.string().describe('A fictional or real URL to apply')
+        })).length(5).describe('Top 5 job recommendations based on the profile')
+      });
+    } else if (schemaId === 'analytics') {
+      schema = z.object({
+        fillerWords: z.number().describe('Estimated count of filler words (um, uh, like)'),
+        pacing: z.string().describe('Feedback on pacing: too fast, too slow, or perfect'),
+        confidenceScore: z.number().describe('Confidence score from 0 to 100 based on word choice'),
+        strengths: z.array(z.string()).describe('Top 2-3 strengths from the interview'),
+        improvements: z.array(z.string()).describe('Top 2-3 areas for improvement')
+      });
+    } else if (schemaId === 'company-intel') {
+      schema = z.object({
+        mission: z.string().describe('The core mission or thesis of the company'),
+        recentNews: z.array(z.string()).describe('2-3 recent headlines or milestones for the company'),
+        culture: z.string().describe('A summary of their engineering/company culture'),
+        techStack: z.array(z.string()).describe('Guessed or known technologies they use'),
+        redFlags: z.array(z.string()).describe('Potential red flags or common criticisms if any')
+      });
     } else {
       return res.status(400).json({ error: 'Invalid schemaId' });
     }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStorageSession, useStorageLocal } from '../hooks/useStorage';
-import { CandidateProfile, JobDescription } from '../types';
+import { CandidateProfile, JobDescription, AppSettings } from '../types';
 import { toast } from 'react-hot-toast';
+import { CoverLetterGenerator } from './CoverLetterGenerator';
 
 declare const pdfjsLib: any;
 
@@ -9,6 +10,7 @@ export function AtsMatcher() {
   const [jd] = useStorageSession<JobDescription | null>('currentJD', null);
   const [profiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
   const [activeProfileId] = useStorageLocal<string | null>('activeProfileId', null);
+  const [settings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
 
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<{ score: number, strengths: string[], weaknesses: string[], suggestions: any[] } | null>(null);
@@ -262,6 +264,8 @@ export function AtsMatcher() {
                 ⟲ Reset Analysis
               </button>
             </div>
+            
+            <CoverLetterGenerator jd={jd} profile={activeProfile} settings={settings} />
           </div>
         )}
       </div>

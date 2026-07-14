@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { useStorageLocal } from '../hooks/useStorage';
 import { KanbanBoard } from '../components/KanbanBoard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { SmartInbox } from '../components/SmartInbox';
+import { JobDiscovery } from '../components/JobDiscovery';
+import { FunnelAnalytics } from '../components/FunnelAnalytics';
 import { CandidateProfile, AppSettings } from '../types';
 import { Toaster, toast } from 'react-hot-toast';
 
 export function Dashboard() {
   const [profiles, setProfiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
   const [settings, setSettings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
-  const [activeTab, setActiveTab] = useState<'profiles' | 'settings' | 'kanban' | 'ats' | 'interview'>('profiles');
+  const [activeTab, setActiveTab] = useState<'profiles' | 'settings' | 'kanban' | 'ats' | 'interview' | 'inbox' | 'discovery' | 'analytics'>('profiles');
   const [activeProfileId, setActiveProfileId] = useStorageLocal<string | null>('activeProfileId', null);
 
   const [isAddingProfile, setIsAddingProfile] = useState(false);
@@ -141,11 +144,35 @@ export function Dashboard() {
           </button>
           <button 
             role="tab"
+            aria-selected={activeTab === 'discovery'}
+            onClick={() => setActiveTab('discovery')}
+            className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'discovery' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+          >
+            🔭 Discovery
+          </button>
+          <button 
+            role="tab"
             aria-selected={activeTab === 'kanban'}
             onClick={() => setActiveTab('kanban')}
             className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'kanban' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
           >
             📊 Tracker
+          </button>
+          <button 
+            role="tab"
+            aria-selected={activeTab === 'inbox'}
+            onClick={() => setActiveTab('inbox' as any)}
+            className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'inbox' as any ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+          >
+            📬 Smart Inbox
+          </button>
+          <button 
+            role="tab"
+            aria-selected={activeTab === 'analytics'}
+            onClick={() => setActiveTab('analytics')}
+            className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'analytics' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+          >
+            📈 Analytics
           </button>
           
           <div className="mt-auto">
@@ -327,9 +354,27 @@ export function Dashboard() {
             </div>
           </div>
         )}
+        
+        {activeTab === 'discovery' as any && (
+          <div role="tabpanel" className="h-full">
+            <JobDiscovery />
+          </div>
+        )}
+        
+        {activeTab === 'inbox' as any && (
+          <div role="tabpanel" className="h-full">
+            <SmartInbox />
+          </div>
+        )}
+
+        {activeTab === 'analytics' as any && (
+          <div role="tabpanel" className="h-full">
+            <FunnelAnalytics />
+          </div>
+        )}
         </ErrorBoundary>
       </main>
-
+      
       {/* Profile Creation Modal */}
       {isAddingProfile && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">

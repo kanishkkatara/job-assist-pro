@@ -35,7 +35,8 @@
     "scripting",
     "contextMenus",
     "offscreen",
-    "tabCapture"
+    "tabCapture",
+    "webNavigation"
   ],
   "host_permissions": [],
   "web_accessible_resources": [

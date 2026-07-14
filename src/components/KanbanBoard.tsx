@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { getApplications, updateApplicationStatus, ApplicationJob, deleteApplication } from '../utils/db';
 import { DndContext, DragEndEvent, useDraggable, useDroppable, closestCorners } from '@dnd-kit/core';
 import { toast } from 'react-hot-toast';
+import { AtsMatcher } from './AtsMatcher';
+import { MockInterview } from './MockInterview';
+import { SalaryNegotiation } from './SalaryNegotiation';
+import { CompanyIntel } from './CompanyIntel';
+import { useStorageSession, useStorageLocal } from '../hooks/useStorage';
+import { AppSettings } from '../types';
 
 const COLUMNS: Array<ApplicationJob['status']> = ['Discovered', 'Applied', 'Interviewing', 'Offered', 'Rejected'];
 
@@ -84,17 +90,13 @@ function DroppableColumn({ status, jobs, onDelete, onCardClick }: { status: Appl
 }
 
 
-
-import { AtsMatcher } from './AtsMatcher';
-import { MockInterview } from './MockInterview';
-import { useStorageSession } from '../hooks/useStorage';
-
 export function KanbanBoard() {
   const [jobs, setJobs] = useState<ApplicationJob[]>([]);
   const isMounted = React.useRef(true);
   const [selectedJob, setSelectedJob] = useState<ApplicationJob | null>(null);
   const [, setCurrentJD] = useStorageSession<any>('currentJD', null);
-  const [panelTab, setPanelTab] = useState<'overview' | 'ats' | 'interview'>('overview');
+  const [settings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
+  const [panelTab, setPanelTab] = useState<'overview' | 'ats' | 'interview' | 'negotiation' | 'intel'>('overview');
 
   useEffect(() => {
     return () => { isMounted.current = false; };
@@ -191,7 +193,6 @@ export function KanbanBoard() {
               </button>
             </div>
             
-            {/* Tabs */}
             <div className="flex px-6 bg-white border-b border-slate-200">
               <button 
                 onClick={() => setPanelTab('overview')}
@@ -211,14 +212,69 @@ export function KanbanBoard() {
               >
                 Mock Interview
               </button>
+              <button 
+                onClick={() => setPanelTab('negotiation')}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'negotiation' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+              >
+                Negotiation
+              </button>
+              <button 
+                onClick={() => setPanelTab('intel')}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'intel' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+              >
+                Company Intel
+              </button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6">
               {panelTab === 'overview' && (
-                <div className="animate-in fade-in duration-300">
-                  <h3 className="text-lg font-bold text-slate-800 mb-4 px-2">Job Description</h3>
-                  <div className="bg-white p-6 rounded-2xl shadow-sm ring-1 ring-slate-200 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                    {selectedJob.jdText || 'No job description saved.'}
+                <div className="animate-in fade-in duration-300 flex flex-col gap-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 px-2 flex items-center gap-2">
+                      <span className="text-xl">🗄️</span> The Resume Vault
+                    </h3>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm ring-1 ring-slate-200">
+                      {selectedJob.tailoredResumeBase64 ? (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-emerald-50 text-emerald-600 p-3 rounded-xl ring-1 ring-emerald-200">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800">Tailored Resume Locked</p>
+                              <p className="text-xs text-slate-500">This resume will be automatically used when you click Auto-fill.</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = selectedJob.tailoredResumeBase64!;
+                              link.download = `Tailored_Resume_${selectedJob.company}.pdf`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg font-semibold text-sm transition-colors ring-1 ring-indigo-200"
+                          >
+                            Download PDF
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-slate-500 text-sm mb-3">No tailored resume saved for this job yet.</p>
+                          <button onClick={() => setPanelTab('ats')} className="text-indigo-600 font-semibold text-sm hover:underline">
+                            Run ATS Matcher to Generate One
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 px-2">Job Description</h3>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm ring-1 ring-slate-200 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                      {selectedJob.jdText || 'No job description saved.'}
+                    </div>
                   </div>
                 </div>
               )}
@@ -232,6 +288,18 @@ export function KanbanBoard() {
               {panelTab === 'interview' && (
                 <div className="animate-in fade-in duration-300">
                   <MockInterview />
+                </div>
+              )}
+
+              {panelTab === 'negotiation' && selectedJob && (
+                <div className="animate-in fade-in duration-300">
+                  <SalaryNegotiation job={selectedJob} />
+                </div>
+              )}
+
+              {panelTab === 'intel' && selectedJob && (
+                <div className="animate-in fade-in duration-300 h-full">
+                  <CompanyIntel company={selectedJob.company} settings={settings} />
                 </div>
               )}
             </div>

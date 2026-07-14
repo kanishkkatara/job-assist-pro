@@ -3,6 +3,7 @@ import { useStorageSession, useStorageLocal } from '../hooks/useStorage';
 import { CandidateProfile, JobDescription, AppSettings } from '../types';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { z } from 'zod';
+import { InterviewAnalytics } from './InterviewAnalytics';
 
 export function MockInterview() {
   const [jd] = useStorageSession<JobDescription | null>('currentJD', null);
@@ -13,6 +14,8 @@ export function MockInterview() {
   const activeProfile = profiles.find(p => p.id === activeProfileId);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
+  const [sessionTranscripts, setSessionTranscripts] = useState<{question: string, answer: string}[]>([]);
+  const [isComplete, setIsComplete] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = React.useRef<any>(null);
@@ -37,6 +40,8 @@ export function MockInterview() {
     if (!jd || !activeProfile || !settings.apiKey) return;
     setCurrentQuestionIndex(0);
     setUserAnswer('');
+    setSessionTranscripts([]);
+    setIsComplete(false);
     
     const prompt = `You are an expert technical recruiter. Based on this job description and candidate profile, generate exactly 5 behavioral interview questions tailored to the role. Ensure they require STAR (Situation, Task, Action, Result) format answers.
     
@@ -93,6 +98,20 @@ export function MockInterview() {
     );
   }
 
+  if (isComplete) {
+    return (
+      <InterviewAnalytics 
+        transcripts={sessionTranscripts} 
+        settings={settings}
+        onReset={() => {
+          setIsComplete(false);
+          setSessionTranscripts([]);
+          setCurrentQuestionIndex(0);
+          setUserAnswer('');
+        }}
+      />
+    );
+  }
   return (
     <div className="bg-white p-8 rounded-2xl ring-1 ring-slate-200 shadow-sm flex flex-col h-full max-w-4xl mx-auto">
       <div className="mb-6">
@@ -139,9 +158,15 @@ export function MockInterview() {
           toggleRecording={toggleRecording}
           settings={settings}
           onNext={() => {
+            setSessionTranscripts(prev => [
+              ...prev, 
+              { question: questions[currentQuestionIndex] || '', answer: userAnswer }
+            ]);
             if (currentQuestionIndex < questions.length - 1) {
               setCurrentQuestionIndex(prev => prev + 1);
               setUserAnswer('');
+            } else {
+              setIsComplete(true);
             }
           }}
         />
