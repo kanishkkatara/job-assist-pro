@@ -437,6 +437,45 @@
       return true;
     }
 
+    if (message.type === 'SUBMIT_FORM') {
+      try {
+        // Try common submit button patterns
+        const submitSelectors = [
+          'button[type="submit"]',
+          'input[type="submit"]',
+          'button.submit_app',
+          '#submit_app',
+          '.application-submit-button',
+          '[data-qa="submit-button"]'
+        ];
+        
+        let submitBtn = null;
+        for (const selector of submitSelectors) {
+          submitBtn = document.querySelector(selector);
+          if (submitBtn) break;
+        }
+
+        // Fallback: search by text
+        if (!submitBtn) {
+          const buttons = Array.from(document.querySelectorAll('button, a.button'));
+          submitBtn = buttons.find(b => {
+            const text = b.textContent?.toLowerCase() || '';
+            return text.includes('submit application') || text.includes('apply') || text.includes('submit');
+          });
+        }
+
+        if (submitBtn) {
+          submitBtn.click();
+          sendResponse({ success: true, message: 'Form submitted' });
+        } else {
+          sendResponse({ success: false, error: 'Submit button not found' });
+        }
+      } catch (err: any) {
+        sendResponse({ success: false, error: err.message });
+      }
+      return true;
+    }
+
     if (message.type === 'ATTACH_RESUME') {
       try {
         const fileInput = document.querySelector('input[type="file"]');

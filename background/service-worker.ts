@@ -95,6 +95,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+  if (message.type === 'AUTO_APPLY') {
+    (async () => {
+      try {
+        const { job, profile } = message.payload;
+        
+        // 1. Create hidden background tab
+        const tab = await chrome.tabs.create({ url: job.url, active: false });
+        if (!tab.id) throw new Error("Could not create tab");
+
+        // We mark this tab as an autonomous tab in local storage so onCompleted knows to close it
+        const { autonomousTabs } = await chrome.storage.local.get({ autonomousTabs: [] });
+        await chrome.storage.local.set({ autonomousTabs: [...autonomousTabs, tab.id] });
+
+        // 2. Wait for it to load
+        await new Promise<void>((resolve) => {
+          chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+            if (tabId === tab.id && info.status === 'complete') {
+              chrome.tabs.onUpdated.removeListener(listener);
+              resolve();
+            }
+          });
+        });
+
+        // Add a slight delay for SPA frameworks to hydrate
+        await new Promise(r => setTimeout(r, 2000));
+
+        // 3. Inject content script
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id, allFrames: true },
+          files: [contentUrl]
+        });
+
+        // 4. Send FILL_FORM (give it time to fill)
+        await chrome.tabs.sendMessage(tab.id, { type: 'FILL_FORM', payload: { profile } }).catch(() => {});
+        await new Promise(r => setTimeout(r, 3000));
+
+        // 5. Send SUBMIT_FORM
+        await chrome.tabs.sendMessage(tab.id, { type: 'SUBMIT_FORM' }).catch(() => {});
+
+        sendResponse({ success: true });
+      } catch (e: any) {
+        console.error("Auto Apply Error:", e);
+        sendResponse({ success: false, error: e.message });
+      }
+    })();
+    return true;
+  }
 
   if (message.type === 'OPEN_DASHBOARD') {
     chrome.runtime.openOptionsPage();
@@ -277,13 +324,30 @@ chrome.webNavigation.onCompleted.addListener(async (details) => {
         
         if (matchingJob) {
           await updateApplicationStatus(matchingJob.id, 'Applied');
-          // Optionally notify the user via a popup or notification
-          chrome.notifications.create({
-            type: 'basic',
-            iconUrl: chrome.runtime.getURL('assets/icons/icon128.png'),
-            title: 'Application Tracked!',
-            message: `Auto-moved ${matchingJob.company} - ${matchingJob.title} to 'Applied'.`
-          });
+          
+          // Check if this was an autonomous tab
+          const { autonomousTabs } = await chrome.storage.local.get({ autonomousTabs: [] });
+          if (autonomousTabs.includes(details.tabId)) {
+            // It was an autonomous apply, close the tab and clean up
+            chrome.tabs.remove(details.tabId);
+            const newAutonomousTabs = autonomousTabs.filter((id: number) => id !== details.tabId);
+            await chrome.storage.local.set({ autonomousTabs: newAutonomousTabs });
+            
+            chrome.notifications.create({
+              type: 'basic',
+              iconUrl: chrome.runtime.getURL('assets/icons/icon128.png'),
+              title: 'Auto-Apply Successful! ✨',
+              message: `Successfully applied to ${matchingJob.company} - ${matchingJob.title} in the background.`
+            });
+          } else {
+            // Manual apply track notification
+            chrome.notifications.create({
+              type: 'basic',
+              iconUrl: chrome.runtime.getURL('assets/icons/icon128.png'),
+              title: 'Application Tracked!',
+              message: `Auto-moved ${matchingJob.company} - ${matchingJob.title} to 'Applied'.`
+            });
+          }
         }
       } catch (e) {
         console.error('Auto-status update failed', e);

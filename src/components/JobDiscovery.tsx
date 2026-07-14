@@ -136,11 +136,38 @@ Simulate scraping the web and return 5 highly relevant, realistic job openings t
                 >
                   + Add to Tracker
                 </button>
+                <button 
+                  onClick={() => {
+                    const savedJob = {
+                      id: Date.now().toString(),
+                      company: job.company,
+                      title: job.title,
+                      url: job.url,
+                      status: 'Applied' as const, // optimistically set to Applied
+                      jdText: '',
+                      notes: '',
+                      capturedAt: Date.now()
+                    };
+                    // Save locally first
+                    addApplication(savedJob).catch(console.error);
+                    
+                    toast.loading(`Auto-applying to ${job.company} in background...`, { duration: 3000 });
+                    
+                    // Send to background service worker
+                    chrome.runtime.sendMessage({
+                      type: 'AUTO_APPLY',
+                      payload: { job: savedJob, profile: activeProfile }
+                    });
+                  }}
+                  className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-sm font-semibold py-2 px-4 rounded-lg transition-colors border border-indigo-200 flex items-center gap-2 shadow-sm"
+                >
+                  ✨ Auto-Apply
+                </button>
                 <a 
                   href={job.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm font-medium text-slate-400 hover:text-slate-600 underline"
+                  className="text-sm font-medium text-slate-400 hover:text-slate-600 underline ml-2"
                 >
                   View Details
                 </a>
