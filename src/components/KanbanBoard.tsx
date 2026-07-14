@@ -94,6 +94,7 @@ export function KanbanBoard() {
   const isMounted = React.useRef(true);
   const [selectedJob, setSelectedJob] = useState<ApplicationJob | null>(null);
   const [, setCurrentJD] = useStorageSession<any>('currentJD', null);
+  const [panelTab, setPanelTab] = useState<'overview' | 'ats' | 'interview'>('overview');
 
   useEffect(() => {
     return () => { isMounted.current = false; };
@@ -171,18 +172,18 @@ export function KanbanBoard() {
 
       {/* Slide-out Panel */}
       <div 
-        className={`absolute top-0 right-0 w-[800px] max-w-full h-full bg-white shadow-2xl ring-1 ring-slate-200 transform transition-transform duration-500 ease-in-out z-50 flex flex-col ${selectedJob ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute top-0 right-0 w-[800px] max-w-full h-full bg-slate-50 shadow-2xl ring-1 ring-slate-200 transform transition-transform duration-500 ease-in-out z-50 flex flex-col ${selectedJob ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {selectedJob && (
           <>
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-white shadow-sm z-10">
               <div>
                 <h2 className="text-2xl font-bold text-slate-800">{selectedJob.title}</h2>
                 <p className="text-slate-500 font-medium">{selectedJob.company}</p>
               </div>
               <button 
                 onClick={() => setSelectedJob(null)}
-                className="text-slate-400 hover:text-slate-600 bg-white ring-1 ring-slate-200 hover:ring-slate-300 rounded-full p-2 transition-all"
+                className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 ring-1 ring-slate-200 rounded-full p-2 transition-all"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -190,25 +191,49 @@ export function KanbanBoard() {
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 space-y-12">
-              <section>
-                <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            {/* Tabs */}
+            <div className="flex px-6 bg-white border-b border-slate-200">
+              <button 
+                onClick={() => setPanelTab('overview')}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'overview' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+              >
+                Overview
+              </button>
+              <button 
+                onClick={() => setPanelTab('ats')}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'ats' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+              >
+                ATS Matcher
+              </button>
+              <button 
+                onClick={() => setPanelTab('interview')}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'interview' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+              >
+                Mock Interview
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {panelTab === 'overview' && (
+                <div className="animate-in fade-in duration-300">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 px-2">Job Description</h3>
+                  <div className="bg-white p-6 rounded-2xl shadow-sm ring-1 ring-slate-200 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                    {selectedJob.jdText || 'No job description saved.'}
+                  </div>
+                </div>
+              )}
+              
+              {panelTab === 'ats' && (
+                <div className="animate-in fade-in duration-300">
                   <AtsMatcher />
                 </div>
-              </section>
-
-              <section>
-                <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+              )}
+              
+              {panelTab === 'interview' && (
+                <div className="animate-in fade-in duration-300">
                   <MockInterview />
                 </div>
-              </section>
-
-              <section>
-                <h3 className="text-lg font-bold text-slate-800 mb-4 px-2">Job Description</h3>
-                <div className="bg-slate-50 p-6 rounded-2xl ring-1 ring-slate-200 text-sm text-slate-700 whitespace-pre-wrap max-h-[400px] overflow-y-auto">
-                  {selectedJob.jdText || 'No job description saved.'}
-                </div>
-              </section>
+              )}
             </div>
           </>
         )}

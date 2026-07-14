@@ -12,6 +12,7 @@ export function Dashboard() {
   const [activeProfileId, setActiveProfileId] = useStorageLocal<string | null>('activeProfileId', null);
 
   const [isAddingProfile, setIsAddingProfile] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileRole, setNewProfileRole] = useState('');
   const [newProfileSkills, setNewProfileSkills] = useState('');
@@ -115,6 +116,11 @@ export function Dashboard() {
     setNewProfileSkills('');
     setNewProfileResume('');
     setIsParsing(false);
+    
+    if (profiles.length === 0) {
+      setWizardStep(3);
+    }
+    
     toast.success('Profile created successfully!');
   };
 
@@ -169,17 +175,83 @@ export function Dashboard() {
                 + New Profile
               </button>
             </div>
-            {profiles.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200">
-                <div className="flex justify-center mb-6">
-                  <div className="bg-gradient-to-br from-slate-50 to-slate-100 ring-1 ring-slate-200 rounded-full p-6">
-                    <svg className="w-12 h-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
+            {profiles.length === 0 || wizardStep === 3 ? (
+              <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+                <div className="bg-indigo-600 px-8 py-6 text-white">
+                  <h3 className="text-2xl font-bold mb-2">Welcome to JobAssist Pro! 🎉</h3>
+                  <p className="text-indigo-100">Let's get your AI job assistant set up in 3 quick steps.</p>
                 </div>
-                <h3 className="text-xl font-semibold text-slate-700">No profiles yet</h3>
-                <p className="text-slate-500 mt-2 max-w-sm mx-auto">Create a profile and upload your resume to start tailoring applications.</p>
+                
+                <div className="p-8">
+                  {/* Progress Indicator */}
+                  <div className="flex items-center justify-between mb-8">
+                    {[1, 2, 3].map(step => (
+                      <div key={step} className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${wizardStep >= step ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          {step}
+                        </div>
+                        {step < 3 && <div className={`w-24 h-1 mx-2 rounded ${wizardStep > step ? 'bg-indigo-600' : 'bg-slate-100'}`} />}
+                      </div>
+                    ))}
+                  </div>
+
+                  {wizardStep === 1 && (
+                    <div className="animate-in fade-in slide-in-from-right-4">
+                      <h4 className="text-xl font-bold text-slate-800 mb-4">Step 1: Connect OpenAI</h4>
+                      <p className="text-slate-600 mb-6">We use your local API key to power the AI features securely. Your key never leaves your browser.</p>
+                      <input 
+                        type="password" 
+                        value={settings.apiKey || ''} 
+                        onChange={(e) => updateSettings('apiKey', e.target.value)}
+                        className="w-full p-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none mb-6"
+                        placeholder="sk-..."
+                      />
+                      <button 
+                        onClick={() => setWizardStep(2)}
+                        disabled={!settings.apiKey}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  )}
+
+                  {wizardStep === 2 && (
+                    <div className="animate-in fade-in slide-in-from-right-4">
+                      <h4 className="text-xl font-bold text-slate-800 mb-4">Step 2: Upload Your Master Resume</h4>
+                      <p className="text-slate-600 mb-6">Upload your PDF. We'll parse your work experience into structured data so we can perfectly tailor your applications.</p>
+                      
+                      <button 
+                        onClick={() => setIsAddingProfile(true)}
+                        className="w-full border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-600 px-6 py-12 rounded-2xl font-bold transition-all flex flex-col items-center justify-center gap-4 mb-6"
+                      >
+                        <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Create Profile & Upload PDF
+                      </button>
+                    </div>
+                  )}
+
+                  {wizardStep === 3 && (
+                    <div className="animate-in fade-in slide-in-from-right-4 text-center py-8">
+                      <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <h4 className="text-2xl font-bold text-slate-800 mb-4">You're All Set!</h4>
+                      <p className="text-slate-600 mb-8 max-w-sm mx-auto">Your resume has been parsed. You can now use the Chrome extension on any job board to capture JDs, tailor resumes, and run mock interviews.</p>
+                      
+                      <button 
+                        onClick={() => setWizardStep(4)} // 4 hides the wizard and shows the standard profile grid
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold transition-all w-full shadow-lg shadow-indigo-600/30"
+                      >
+                        Go to Dashboard
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
