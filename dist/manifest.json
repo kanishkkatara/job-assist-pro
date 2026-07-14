@@ -23,7 +23,7 @@
     "open_in_tab": true
   },
   "background": {
-    "service_worker": "background/service-worker.ts",
+    "service_worker": "service-worker-loader.js",
     "type": "module"
   },
   "side_panel": {
@@ -38,8 +38,13 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lib/pdf.worker.min.js"],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "resources": [
+        "lib/pdf.worker.min.js"
+      ],
+      "use_dynamic_url": false
     }
   ]
 }

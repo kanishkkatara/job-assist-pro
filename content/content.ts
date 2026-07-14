@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 // content/content.js — Injected into every page
 
 (function () {
@@ -401,32 +403,6 @@
   let lastActiveElement = null;
   document.addEventListener('contextmenu', (e) => {
     lastActiveElement = e.target;
-  }, true);
-
-  // Auto-Learn fields that user types in
-  document.addEventListener('change', (e) => {
-    const el = e.target;
-    if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable) {
-      // Ignore if we just autofilled it
-      if (el.dataset.jobassistFilled) return;
-      
-      const { labelText } = extractLabel(el);
-      if (labelText && labelText.length > 2 && labelText.length < 50) {
-        let value = el.value || el.textContent;
-        if (el.tagName === 'SELECT') {
-          value = el.options[el.selectedIndex]?.text || el.value;
-        }
-        
-        // Ignore obvious non-application fields
-        const lower = labelText.toLowerCase();
-        if (lower.includes('search') || lower.includes('password') || !value) return;
-        
-        chrome.runtime.sendMessage({
-          type: 'LEARN_FIELD',
-          payload: { label: labelText, value }
-        });
-      }
-    }
   }, true);
 
   function fillAnswer(questionId, answer) {

@@ -1,0 +1,49 @@
+{
+  "name": "job-assist-pro",
+  "version": "1.0.0",
+  "description": "An AI-powered Chrome extension that helps you apply to jobs faster. Manage multiple job profiles, capture job descriptions as context, auto-fill application forms, generate cover letters, and get AI-suggested answers to application questions.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kanishkkatara/job-assist-pro.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kanishkkatara/job-assist-pro/issues"
+  },
+  "homepage": "https://github.com/kanishkkatara/job-assist-pro#readme",
+  "dependencies": {
+    "@ai-sdk/react": "^4.0.26",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "idb": "^8.0.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hot-toast": "^2.6.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.33",
+    "@types/chrome": "^0.2.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "autoprefixer": "^10.5.2",
+    "postcss": "^8.5.19",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4"
+  }
+}

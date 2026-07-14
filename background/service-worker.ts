@@ -1,4 +1,7 @@
-// background/service-worker.js
+// @ts-nocheck
+
+// background/service-worker.ts
+import contentUrl from '../content/content.ts?url';
 
 // Configure the side panel to open when clicking the extension icon
 chrome.runtime.onInstalled.addListener(() => {
@@ -30,19 +33,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'INJECT_CONTENT') {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      if (tabs[0]) {
-        try {
+    (async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) {
           await chrome.scripting.executeScript({
-            target: { tabId: tabs[0].id },
-            files: ['content/content.js'],
+            target: { tabId: tab.id },
+            files: [contentUrl],
           });
           sendResponse({ success: true });
-        } catch (e) {
-          sendResponse({ success: false, error: e.message });
+        } else {
+          sendResponse({ success: false, error: 'No active tab' });
         }
+      } catch (e: any) {
+        sendResponse({ success: false, error: e.message });
       }
-    });
+    })();
     return true;
   }
 
@@ -152,7 +158,7 @@ async function callOpenAI(userPrompt, systemPrompt, settings, maxTokens = 800, r
   messages.push({ role: 'user', content: userPrompt });
 
   for (let i = 0; i < retries; i++) {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('http://localhost:3000/api/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

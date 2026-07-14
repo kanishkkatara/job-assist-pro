@@ -1,0 +1,62 @@
+{
+  "../../../../../@crx/manifest": {
+    "file": "assets/crx-manifest.js-xlsFpnnH.js",
+    "name": "crx-manifest.js",
+    "src": "../../../../../@crx/manifest",
+    "isEntry": true
+  },
+  "_jsx-runtime-CjZ7hKZX.js": {
+    "file": "assets/jsx-runtime-CjZ7hKZX.js",
+    "name": "jsx-runtime",
+    "imports": [
+      "_rolldown-runtime-B-9mzPXz.js"
+    ],
+    "css": [
+      "assets/jsx-runtime-Dl9lwULK.css"
+    ]
+  },
+  "_jsx-runtime-Dl9lwULK.css": {
+    "file": "assets/jsx-runtime-Dl9lwULK.css",
+    "src": "_jsx-runtime-Dl9lwULK.css"
+  },
+  "_rolldown-runtime-B-9mzPXz.js": {
+    "file": "assets/rolldown-runtime-B-9mzPXz.js",
+    "name": "rolldown-runtime"
+  },
+  "background/service-worker.ts": {
+    "file": "assets/service-worker.ts-CEmBeCBB.js",
+    "name": "service-worker.ts",
+    "src": "background/service-worker.ts",
+    "isEntry": true,
+    "imports": [
+      "_rolldown-runtime-B-9mzPXz.js"
+    ],
+    "assets": [
+      "assets/content-gUZbSaiC.ts"
+    ]
+  },
+  "content/content.ts": {
+    "file": "assets/content-gUZbSaiC.ts",
+    "src": "content/content.ts"
+  },
+  "dashboard/dashboard.html": {
+    "file": "assets/dashboard.html-Dw438ml-.js",
+    "name": "dashboard.html",
+    "src": "dashboard/dashboard.html",
+    "isEntry": true,
+    "imports": [
+      "_rolldown-runtime-B-9mzPXz.js",
+      "_jsx-runtime-CjZ7hKZX.js"
+    ]
+  },
+  "popup/popup.html": {
+    "file": "assets/popup.html-Q7XpGGWA.js",
+    "name": "popup.html",
+    "src": "popup/popup.html",
+    "isEntry": true,
+    "imports": [
+      "_rolldown-runtime-B-9mzPXz.js",
+      "_jsx-runtime-CjZ7hKZX.js"
+    ]
+  }
+}
