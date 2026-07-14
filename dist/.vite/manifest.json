@@ -24,7 +24,7 @@
     "name": "rolldown-runtime"
   },
   "background/service-worker.ts": {
-    "file": "assets/service-worker.ts-CPoueMHI.js",
+    "file": "assets/service-worker.ts-Dr7Gftj2.js",
     "name": "service-worker.ts",
     "src": "background/service-worker.ts",
     "isEntry": true,
@@ -32,11 +32,11 @@
       "_rolldown-runtime-BgaNhQyE.js"
     ],
     "assets": [
-      "assets/content-B1Yp1AGz.ts"
+      "assets/content-05ztP_Ki.ts"
     ]
   },
   "content/content.ts": {
-    "file": "assets/content-B1Yp1AGz.ts",
+    "file": "assets/content-05ztP_Ki.ts",
     "src": "content/content.ts"
   },
   "dashboard/dashboard.html": {

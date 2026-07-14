@@ -559,6 +559,133 @@
       sendResponse({ success: true });
       return true;
     }
+
+    if (message.type === 'SHOW_COPILOT_TRANSCRIPT' || message.type === 'SHOW_COPILOT_HINT') {
+      let container = document.getElementById('jobassist-copilot-overlay');
+      let shadowRoot = null;
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'jobassist-copilot-overlay';
+        container.style.position = 'fixed';
+        container.style.bottom = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '2147483647';
+        container.style.width = '380px';
+        container.style.maxHeight = '450px';
+        container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+        container.style.pointerEvents = 'none'; // Don't block background clicks, but allow interaction on wrapper
+        
+        shadowRoot = container.attachShadow({ mode: 'open' });
+        
+        const style = document.createElement('style');
+        style.textContent = `
+          .wrapper {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            pointer-events: auto; /* Re-enable pointer events for the box itself */
+          }
+          .header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #818cf8;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .pulse {
+            width: 10px;
+            height: 10px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+          }
+          @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+          }
+          .transcript {
+            font-size: 14px;
+            color: #94a3b8;
+            line-height: 1.5;
+            font-style: italic;
+            margin-bottom: 16px;
+            max-height: 120px;
+            overflow-y: auto;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 12px;
+          }
+          .transcript::-webkit-scrollbar { width: 4px; }
+          .transcript::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+          .hint {
+            font-size: 15px;
+            color: #f8fafc;
+            background: rgba(99, 102, 241, 0.15);
+            border-left: 3px solid #6366f1;
+            padding: 12px 14px;
+            border-radius: 0 6px 6px 0;
+            line-height: 1.5;
+          }
+          ul { margin: 0; padding-left: 18px; }
+          li { margin-bottom: 6px; }
+          li:last-child { margin-bottom: 0; }
+        `;
+        shadowRoot.appendChild(style);
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'wrapper';
+        wrapper.innerHTML = `
+          <div class="header">
+            <div class="pulse"></div>
+            Copilot Active
+          </div>
+          <div class="transcript" id="transcript-box">Listening...</div>
+          <div class="hint" id="hint-box" style="display:none;"></div>
+        `;
+        shadowRoot.appendChild(wrapper);
+        document.body.appendChild(container);
+      } else {
+        shadowRoot = container.shadowRoot;
+      }
+      
+      if (message.type === 'SHOW_COPILOT_TRANSCRIPT') {
+        const tBox = shadowRoot.getElementById('transcript-box');
+        if (tBox) {
+          tBox.textContent = '"' + message.text.trim() + '..."';
+          tBox.scrollTop = tBox.scrollHeight;
+        }
+      }
+      
+      if (message.type === 'SHOW_COPILOT_HINT') {
+        const hBox = shadowRoot.getElementById('hint-box');
+        if (hBox) {
+          hBox.style.display = 'block';
+          // Convert bullet points to HTML list
+          const html = message.hint.split('\n').map(line => {
+             const trimmed = line.trim();
+             if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+               return `<li>${trimmed.substring(1).trim()}</li>`;
+             }
+             return trimmed ? `<p style="margin:0 0 6px 0">${trimmed}</p>` : '';
+          }).join('');
+          
+          hBox.innerHTML = html.includes('<li>') ? `<ul style="margin:0;padding-left:18px;">${html}</ul>` : html;
+        }
+      }
+      
+      sendResponse({ success: true });
+      return true;
+    }
   });
 
   console.log('[JobAssist Pro] Content script ready');

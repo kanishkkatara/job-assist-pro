@@ -135,6 +135,10 @@ async function setupOffscreenDocument(path) {
   }
 }
 
+let copilotTranscriptBuffer = "";
+let copilotGenerateTimer = null;
+let activeCopilotTabId = null;
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'START_COPILOT') {
     (async () => {
@@ -145,6 +149,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           action: "process_stream",
           streamId: message.streamId
         });
+        
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) activeCopilotTabId = tabs[0].id;
+        
         sendResponse({ success: true });
       } catch (e) {
         console.error("Failed to start copilot", e);
@@ -153,7 +161,59 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
     return true;
   }
+
+  if (message.type === 'COPILOT_TRANSCRIPT') {
+    const text = message.text.trim();
+    if (text.length < 5) return;
+    
+    copilotTranscriptBuffer += " " + text;
+    
+    if (activeCopilotTabId) {
+      chrome.tabs.sendMessage(activeCopilotTabId, { type: 'SHOW_COPILOT_TRANSCRIPT', text: copilotTranscriptBuffer }).catch(()=>{});
+    }
+
+    if (copilotGenerateTimer) clearTimeout(copilotGenerateTimer);
+    
+    // Trigger generation after 3 seconds of silence and at least ~10 words
+    if (copilotTranscriptBuffer.split(' ').length > 10) {
+      copilotGenerateTimer = setTimeout(() => {
+        generateLiveHint(copilotTranscriptBuffer);
+        copilotTranscriptBuffer = "";
+      }, 3000);
+    }
+  }
 });
+
+async function generateLiveHint(transcript) {
+  if (!activeCopilotTabId) return;
+
+  try {
+    const { activeProfileId, profiles, settings } = await chrome.storage.local.get({
+      activeProfileId: null,
+      profiles: [],
+      settings: { apiKey: '', model: 'gpt-4o-mini' }
+    });
+    
+    const profile = profiles.find(p => p.id === activeProfileId);
+    if (!profile || !settings.apiKey) return;
+
+    const { currentJD } = await chrome.storage.session.get({ currentJD: null });
+
+    const prompt = `You are a Live Interview Copilot. The interviewer just said this: "${transcript}"
+    
+Provide a very short, bullet-point STAR story hint for the applicant to reply with. Focus on their experience matching the JD. Max 3 bullet points, extreme brevity.
+
+Applicant Experience: ${(profile.experience || []).map(e => `${e.title} at ${e.company}`).join(', ')}
+Skills: ${(profile.skills || []).join(', ')}
+Target Role: ${currentJD?.title || profile.targetRole}
+`;
+    
+    const hint = await callOpenAI(prompt, "You are a concise interview assistant.", settings, 200);
+    chrome.tabs.sendMessage(activeCopilotTabId, { type: 'SHOW_COPILOT_HINT', hint }).catch(()=>{});
+  } catch (e) {
+    console.error("[Copilot Hint Error]", e);
+  }
+}
 
 // ─────────────────────────────────────────────
 // Context Menu: Inline Generation
