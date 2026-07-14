@@ -1,20 +1,34 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
+// Apply rate limiting (e.g. 100 requests per 15 minutes per IP)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
+});
+app.use('/api/', apiLimiter);
+
 const corsOptions = {
   origin: (origin, callback) => {
-    // Only allow specific extension or localhost
     const allowedExtensionId = process.env.ALLOWED_EXTENSION_ID;
     
-    if (!origin) {
-      // Allow non-browser requests (e.g. curl, server-to-server) during dev
+    // In production, block requests without an origin
+    if (!origin && process.env.NODE_ENV === 'production') {
+      return callback(new Error('Not allowed by CORS'));
+    }
+    
+    if (!origin && process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else if (allowedExtensionId && origin === `chrome-extension://${allowedExtensionId}`) {
       callback(null, true);
-    } else if (origin.startsWith('http://localhost:')) {
+    } else if (origin && (origin === 'http://localhost:3000' || origin === 'http://localhost:5173')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -23,7 +37,8 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
-app.use(express.json());
+// Limit JSON payloads to 500kb to prevent memory exhaustion
+app.use(express.json({ limit: '500kb' }));
 
 const PORT = process.env.PORT || 3000;
 
@@ -45,6 +60,7 @@ app.post('/api/parse-resume', async (req, res) => {
     
     const result = await generateObject({
       model: openai('gpt-4o-mini'),
+      abortSignal: req.socket,
       schema: z.object({
         summary: z.string().describe('A powerful 2-3 sentence professional summary based on the resume'),
         experience: z.array(z.object({
@@ -55,14 +71,18 @@ app.post('/api/parse-resume', async (req, res) => {
           bullets: z.array(z.string()).describe('The key achievements/responsibilities')
         }))
       }),
-      prompt: `Parse this raw PDF resume text into structured data. Fix any weird formatting or line breaks. Extract all work experience and write a summary. \n\nResume text:\n${text}`,
+      messages: [
+        { role: 'system', content: 'Parse this raw PDF resume text into structured data. Fix any weird formatting or line breaks. Extract all work experience and write a summary.' },
+        { role: 'user', content: text }
+      ],
       temperature: 0.1,
     });
     
     res.json(result.object);
   } catch (error) {
     console.error('Parse Resume Error:', error.message);
-    res.status(500).json({ error: error.message });
+    const status = error.name === 'AbortError' ? 499 : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -77,12 +97,14 @@ app.post('/api/chat', async (req, res) => {
       model: openai(model || 'gpt-4o-mini'),
       messages,
       temperature: 0.7,
+      abortSignal: req.socket,
     });
     
     result.pipeTextStreamToResponse(res);
   } catch (error) {
     console.error('Proxy Error:', error.message);
-    res.status(500).json({ error: error.message });
+    const status = error.name === 'AbortError' ? 499 : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -134,7 +156,7 @@ app.post('/api/object', async (req, res) => {
           matchScore: z.number().describe('Match score from 0 to 100'),
           reason: z.string().describe('1 sentence why this is a good match'),
           url: z.string().describe('A fictional or real URL to apply')
-        })).length(5).describe('Top 5 job recommendations based on the profile')
+        })).min(3).max(7).describe('Top 5 job recommendations based on the profile')
       });
     } else if (schemaId === 'analytics') {
       schema = z.object({
@@ -161,12 +183,14 @@ app.post('/api/object', async (req, res) => {
       schema,
       messages,
       temperature: 0.7,
+      abortSignal: req.socket,
     });
     
     result.pipeTextStreamToResponse(res);
   } catch (error) {
     console.error('Proxy Object Error:', error.message);
-    res.status(500).json({ error: error.message });
+    const status = error.name === 'AbortError' ? 499 : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 

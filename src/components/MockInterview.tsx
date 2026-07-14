@@ -20,6 +20,15 @@ export function MockInterview() {
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = React.useRef<any>(null);
 
+  // Cleanup speech recognition on unmount to prevent memory leaks and hot mics
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
   // 1. Hook for generating questions
   const { 
     object: questionsObject, 

@@ -36,8 +36,17 @@
     "contextMenus",
     "offscreen",
     "tabCapture",
-    "webNavigation"
+    "webNavigation",
+    "identity",
+    "alarms",
+    "notifications"
   ],
+  "oauth2": {
+    "client_id": "YOUR_OAUTH_CLIENT_ID_HERE.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.readonly"
+    ]
+  },
   "host_permissions": [ ],
   "web_accessible_resources": [
     {

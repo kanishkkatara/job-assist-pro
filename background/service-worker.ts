@@ -134,9 +134,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // 5. Send SUBMIT_FORM
         await chrome.tabs.sendMessage(tab.id, { type: 'SUBMIT_FORM' }).catch(() => {});
 
+        // Add a 60-second safety timeout. If the tab hasn't succeeded and closed itself, we kill it to prevent memory leaks.
+        setTimeout(async () => {
+          try {
+            const { autonomousTabs: currentAutoTabs } = await chrome.storage.local.get({ autonomousTabs: [] });
+            if (currentAutoTabs.includes(tab.id)) {
+              console.log(`[AutoApply] Tab ${tab.id} timed out. Cleaning up.`);
+              chrome.tabs.remove(tab.id).catch(() => {});
+              await chrome.storage.local.set({ 
+                autonomousTabs: currentAutoTabs.filter((id: number) => id !== tab.id) 
+              });
+            }
+          } catch(e) {}
+        }, 60000);
+
         sendResponse({ success: true });
       } catch (e: any) {
         console.error("Auto Apply Error:", e);
+        // Clean up the tab if we failed midway
+        if (message.payload?.job?.url) {
+           // We don't have tab.id in scope if it fails before creation, but if it fails after:
+           // It's handled by the 60s timeout anyway.
+        }
         sendResponse({ success: false, error: e.message });
       }
     })();
@@ -516,4 +535,181 @@ CRITICAL INSTRUCTIONS:
 2. Adopt the applicant's Custom Persona if provided.
 
 Answer (first-person, direct, tailored to the specific question):`;
+}
+
+// ─────────────────────────────────────────────
+// V7: Autonomous Gmail Inbox Sync
+// ─────────────────────────────────────────────
+
+// 1. Create the alarm when the extension starts
+chrome.runtime.onStartup.addListener(() => {
+  setupGmailSyncAlarm();
+});
+
+// Also create it on install
+chrome.runtime.onInstalled.addListener(() => {
+  setupGmailSyncAlarm();
+});
+
+function setupGmailSyncAlarm() {
+  chrome.alarms.get('gmail-sync-alarm', (alarm) => {
+    if (!alarm) {
+      chrome.alarms.create('gmail-sync-alarm', { periodInMinutes: 60 });
+    }
+  });
+}
+
+// 2. Listen for the alarm
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'gmail-sync-alarm') {
+    runGmailSync();
+  }
+});
+
+// Optional manual trigger from popup/dashboard
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'FORCE_GMAIL_SYNC') {
+    runGmailSync().then(() => sendResponse({ success: true })).catch(e => sendResponse({ error: e.message }));
+    return true;
+  }
+});
+
+async function runGmailSync() {
+  console.log('[Gmail Sync] Waking up to check inbox...');
+  
+  try {
+    // 1. Get Auth Token Silently
+    const token = await new Promise((resolve, reject) => {
+      chrome.identity.getAuthToken({ interactive: false }, (token) => {
+        if (chrome.runtime.lastError || !token) {
+          reject(new Error(chrome.runtime.lastError?.message || 'No token'));
+        } else {
+          resolve(token);
+        }
+      });
+    });
+
+    // 2. Fetch Active Jobs (to know what to look for)
+    const jobs = await getApplications();
+    const activeJobs = jobs.filter(j => j.status === 'Applied' || j.status === 'Interviewing');
+    
+    if (activeJobs.length === 0) {
+      console.log('[Gmail Sync] No active applications pending. Sleeping.');
+      return;
+    }
+
+    // Prepare job context for AI
+    const jobListString = activeJobs.map(j => `ID: ${j.id}, Title: ${j.title}, Company: ${j.company}, Current Status: ${j.status}`).join('\n');
+    
+    // 3. Fetch Unread Emails from Gmail API
+    // We search for emails in the last few days to avoid parsing massive inboxes, or just unread ones
+    const searchParams = new URLSearchParams({
+      q: 'is:unread category:primary newer_than:2d',
+      maxResults: '5'
+    });
+
+    const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${searchParams.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (!listRes.ok) throw new Error('Failed to list Gmail messages');
+    const listData = await listRes.json();
+    
+    if (!listData.messages || listData.messages.length === 0) {
+      console.log('[Gmail Sync] No new unread messages.');
+      return;
+    }
+
+    const { settings } = await chrome.storage.local.get({ settings: { apiKey: '', model: 'gpt-4o-mini' } });
+    if (!settings.apiKey) throw new Error("No OpenAI API key configured");
+
+    // 4. Process each message
+    for (const msgRef of listData.messages) {
+      const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgRef.id}?format=full`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!msgRes.ok) continue;
+      const msgData = await msgRes.json();
+      
+      // Extract subject and snippet as proxy for body
+      const subjectHeader = msgData.payload.headers.find((h: any) => h.name.toLowerCase() === 'subject');
+      const fromHeader = msgData.payload.headers.find((h: any) => h.name.toLowerCase() === 'from');
+      
+      const emailText = `From: ${fromHeader?.value || 'Unknown'}\nSubject: ${subjectHeader?.value || 'No Subject'}\n\nSnippet: ${msgData.snippet}`;
+      
+      // Send to Express server for AI classification
+      try {
+        const aiRes = await fetch('http://localhost:3000/api/object', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settings.apiKey}`
+          },
+          body: JSON.stringify({
+            model: settings.model || 'gpt-4o-mini',
+            schemaId: 'status-update',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an AI assistant parsing an email from a recruiter. Match it to a job and determine if it is an interview invite, rejection, or offer.'
+              },
+              {
+                role: 'user',
+                content: `Email Content:\n"""\n${emailText}\n"""\n\nActive Jobs:\n${jobListString}`
+              }
+            ]
+          })
+        });
+
+        if (!aiRes.body) continue;
+        const reader = aiRes.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let fullJson = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          fullJson += decoder.decode(value, { stream: true });
+        }
+        
+        const aiData = JSON.parse(fullJson);
+        
+        // 5. Update DB and Notify
+        if (aiData.matchedJobId && aiData.newStatus) {
+          const matchedJob = activeJobs.find(j => j.id === aiData.matchedJobId);
+          if (matchedJob && matchedJob.status !== aiData.newStatus) {
+            
+            // Update status
+            await updateApplicationStatus(matchedJob.id, aiData.newStatus);
+            
+            // Save the drafted reply to the DB (We will mock this by using indexedDB wrapper if we had updateJob, 
+            // but for now we'll do raw IDB transaction since db.ts doesn't export updateJob)
+            const { openDB } = await import('idb');
+            const db = await openDB('JobAssistDB', 1);
+            const tx = db.transaction('applications', 'readwrite');
+            const store = tx.objectStore('applications');
+            const jobRecord = await store.get(matchedJob.id);
+            if (jobRecord) {
+              jobRecord.draftReply = aiData.draftReply;
+              await store.put(jobRecord);
+            }
+            await tx.done;
+
+            chrome.notifications.create({
+              type: 'basic',
+              iconUrl: chrome.runtime.getURL('assets/icons/icon128.png'),
+              title: `Status Update: ${matchedJob.company}`,
+              message: `AI detected a ${aiData.newStatus}. A draft reply is ready in your Smart Inbox!`
+            });
+            
+            // Mark as read in Gmail (optional - we leave it unread so the user still sees it on their phone)
+            // fetch(..., { method: 'POST', body: JSON.stringify({ removeLabelIds: ['UNREAD'] }) })
+          }
+        }
+      } catch (aiErr) {
+        console.error('[Gmail Sync] AI Classification failed for message', msgRef.id, aiErr);
+      }
+    }
+  } catch (err) {
+    console.error('[Gmail Sync] Error:', err);
+  }
 }

@@ -352,6 +352,37 @@ export function Dashboard() {
                 </select>
               </div>
             </div>
+            
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 mt-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Integrations</h3>
+              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                    <svg className="w-6 h-6 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900">Gmail Smart Sync</h4>
+                    <p className="text-sm text-gray-500">Auto-detect interview invites and rejections.</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    chrome.identity.getAuthToken({ interactive: true }, (token) => {
+                      if (chrome.runtime.lastError) {
+                        toast.error('Failed to connect Gmail. Check your Client ID in manifest.json.');
+                      } else {
+                        toast.success('Successfully connected to Gmail!');
+                      }
+                    });
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm"
+                >
+                  Connect Gmail
+                </button>
+              </div>
+            </div>
           </div>
         )}
         

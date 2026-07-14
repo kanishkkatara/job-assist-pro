@@ -9,6 +9,7 @@ export interface ApplicationJob {
   jdText: string;
   capturedAt: number;
   
+  draftReply?: string;
   atsScore?: number;
   missingKeywords?: string[];
   coverLetter?: string;

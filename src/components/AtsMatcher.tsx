@@ -38,21 +38,29 @@ export function AtsMatcher() {
     return fullText;
   };
 
-  const isMounted = React.useRef(true);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+
   useEffect(() => {
-    return () => { isMounted.current = false; };
+    return () => { 
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
   }, []);
 
   const analyzeATS = async () => {
     if (!jd || !activeProfile || !activeProfile.resumeBase64) return;
     setLoading(true);
     
+    // Abort any existing request
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
+
     try {
       const { settings } = (await chrome.storage.local.get({ settings: { apiKey: '', model: 'gpt-4o-mini' } })) as any;
       const resumeText = await extractTextFromPDF(activeProfile.resumeBase64);
       
       const response = await fetch('http://localhost:3000/api/object', {
         method: 'POST',
+        signal: abortControllerRef.current.signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${settings.apiKey}`
@@ -77,31 +85,42 @@ export function AtsMatcher() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let fullJson = "";
+      let lastUpdateTime = 0;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         fullJson += decoder.decode(value, { stream: true });
-        try {
-          const parsed = JSON.parse(fullJson);
-          if (isMounted.current && parsed.score !== undefined) {
-            setResults(parsed);
+        
+        const now = Date.now();
+        if (now - lastUpdateTime > 200) {
+          try {
+            const parsed = JSON.parse(fullJson);
+            if (parsed.score !== undefined) {
+              setResults(parsed);
+              lastUpdateTime = now;
+            }
+          } catch (e) {
+            // Ignore parse errors while streaming
           }
-        } catch (e) {
-          // Ignore parse errors while streaming
         }
       }
       
       try {
         const finalParsed = JSON.parse(fullJson);
-        if (isMounted.current) setResults(finalParsed);
+        setResults(finalParsed);
       } catch (e) {}
       
-    } catch (e) {
-      console.error(e);
-      toast.error('Failed to run ATS analysis');
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.log('ATS matching aborted');
+      } else {
+        console.error(e);
+        toast.error('Failed to run ATS analysis');
+      }
     } finally {
-      if (isMounted.current) setLoading(false);
+      setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
