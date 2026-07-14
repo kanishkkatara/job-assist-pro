@@ -174,18 +174,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (copilotGenerateTimer) clearTimeout(copilotGenerateTimer);
     
-    // Trigger generation after 3 seconds of silence and at least ~10 words
-    if (copilotTranscriptBuffer.split(' ').length > 10) {
+    // Trigger generation dynamically as interviewer speaks
+    if (copilotTranscriptBuffer.split(' ').length > 5) {
+      // Small debounce to not overwhelm if firing rapidly
       copilotGenerateTimer = setTimeout(() => {
-        generateLiveHint(copilotTranscriptBuffer);
-        copilotTranscriptBuffer = "";
-      }, 3000);
+        generateLiveHintStream(copilotTranscriptBuffer);
+      }, 500);
     }
   }
 });
 
-async function generateLiveHint(transcript) {
+let copilotAbortController = null;
+
+async function generateLiveHintStream(transcript) {
   if (!activeCopilotTabId) return;
+
+  if (copilotAbortController) {
+    copilotAbortController.abort();
+  }
+  copilotAbortController = new AbortController();
+  const signal = copilotAbortController.signal;
 
   try {
     const { activeProfileId, profiles, settings } = await chrome.storage.local.get({
@@ -199,19 +207,48 @@ async function generateLiveHint(transcript) {
 
     const { currentJD } = await chrome.storage.session.get({ currentJD: null });
 
-    const prompt = `You are a Live Interview Copilot. The interviewer just said this: "${transcript}"
+    const prompt = `You are a Live Interview Copilot. The interviewer is speaking: "${transcript}"
     
-Provide a very short, bullet-point STAR story hint for the applicant to reply with. Focus on their experience matching the JD. Max 3 bullet points, extreme brevity.
+Provide a very short, bullet-point STAR story hint for the applicant to reply with. Stream it quickly. Max 3 bullet points, extreme brevity.
 
 Applicant Experience: ${(profile.experience || []).map(e => `${e.title} at ${e.company}`).join(', ')}
 Skills: ${(profile.skills || []).join(', ')}
 Target Role: ${currentJD?.title || profile.targetRole}
 `;
     
-    const hint = await callOpenAI(prompt, "You are a concise interview assistant.", settings, 200);
-    chrome.tabs.sendMessage(activeCopilotTabId, { type: 'SHOW_COPILOT_HINT', hint }).catch(()=>{});
+    const response = await fetch('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model || 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are a concise interview assistant.' },
+          { role: 'user', content: prompt }
+        ],
+      }),
+      signal
+    });
+
+    if (!response.body) return;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let fullHint = "";
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      fullHint += chunk;
+      
+      chrome.tabs.sendMessage(activeCopilotTabId, { type: 'STREAM_COPILOT_HINT', hint: fullHint }).catch(()=>{});
+    }
   } catch (e) {
-    console.error("[Copilot Hint Error]", e);
+    if (e.name !== 'AbortError') {
+      console.error("[Copilot Hint Stream Error]", e);
+    }
   }
 }
 

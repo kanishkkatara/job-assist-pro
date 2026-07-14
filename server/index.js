@@ -109,6 +109,17 @@ app.post('/api/object', async (req, res) => {
         critique: z.string().describe('1-2 sentences on what was good and what was weak overall'),
         betterVersion: z.string().describe('A polished, professional 1st-person rewrite of their answer')
       });
+    } else if (schemaId === 'ats-review') {
+      schema = z.object({
+        score: z.number().describe('A semantic match score from 0 to 100'),
+        strengths: z.array(z.string()).describe('List of key strengths and matches'),
+        weaknesses: z.array(z.string()).describe('List of gaps or missing skills'),
+        suggestions: z.array(z.object({
+          originalContent: z.string().describe('A snippet from the user\'s resume that should be improved'),
+          suggestedRewrite: z.string().describe('A rewritten version of the snippet tailored to the JD'),
+          reason: z.string().describe('Why this rewrite is better')
+        })).describe('Specific, actionable rewrite suggestions for bullet points')
+      });
     } else {
       return res.status(400).json({ error: 'Invalid schemaId' });
     }

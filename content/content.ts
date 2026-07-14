@@ -560,7 +560,7 @@
       return true;
     }
 
-    if (message.type === 'SHOW_COPILOT_TRANSCRIPT' || message.type === 'SHOW_COPILOT_HINT') {
+    if (message.type === 'SHOW_COPILOT_TRANSCRIPT' || message.type === 'SHOW_COPILOT_HINT' || message.type === 'STREAM_COPILOT_HINT') {
       let container = document.getElementById('jobassist-copilot-overlay');
       let shadowRoot = null;
       if (!container) {
@@ -666,7 +666,7 @@
         }
       }
       
-      if (message.type === 'SHOW_COPILOT_HINT') {
+      if (message.type === 'SHOW_COPILOT_HINT' || message.type === 'STREAM_COPILOT_HINT') {
         const hBox = shadowRoot.getElementById('hint-box');
         if (hBox) {
           hBox.style.display = 'block';
