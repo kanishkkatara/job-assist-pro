@@ -11,6 +11,7 @@ export interface CandidateProfile {
 }
 
 export interface JobDescription {
+  id?: string;
   title: string;
   company: string;
   text: string;

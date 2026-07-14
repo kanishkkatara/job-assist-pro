@@ -35,14 +35,74 @@ export function Dashboard() {
     }
   };
 
-  const handleCreateProfile = () => {
+  const [isParsing, setIsParsing] = useState(false);
+
+  const extractTextFromPDF = async (base64Data: string) => {
+    // @ts-ignore
+    const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
+    if (!pdfjsLib) throw new Error("pdfjsLib not loaded");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '../lib/pdf.worker.min.js';
+
+    const pdfData = atob(base64Data.split(',')[1]);
+    const pdfAsArray = new Uint8Array(pdfData.length);
+    for (let i = 0; i < pdfData.length; i++) pdfAsArray[i] = pdfData.charCodeAt(i);
+
+    const pdf = await pdfjsLib.getDocument({ data: pdfAsArray }).promise;
+    let fullText = '';
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += pageText + ' ';
+    }
+    return fullText;
+  };
+
+  const handleCreateProfile = async () => {
+    if (!newProfileName || !newProfileRole) {
+      toast.error('Please fill in name and target role');
+      return;
+    }
+    
+    setIsParsing(true);
+    let parsedExperience: any[] = [];
+    let parsedSummary = '';
+    
+    try {
+      if (newProfileResume && settings.apiKey) {
+        toast.loading('Parsing resume...', { id: 'parse-toast' });
+        const resumeText = await extractTextFromPDF(newProfileResume);
+        
+        const response = await fetch('http://localhost:3000/api/parse-resume', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settings.apiKey}`,
+          },
+          body: JSON.stringify({ text: resumeText })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          parsedExperience = data.experience || [];
+          parsedSummary = data.summary || '';
+          toast.success('Resume parsed successfully!', { id: 'parse-toast' });
+        } else {
+          throw new Error('Failed to parse resume');
+        }
+      }
+    } catch (e) {
+      console.error('Parsing error', e);
+      toast.error('Failed to parse resume, continuing with empty profile', { id: 'parse-toast' });
+    }
+
     const newProfile: CandidateProfile = {
       id: Date.now().toString(),
       name: newProfileName,
       targetRole: newProfileRole,
       skills: newProfileSkills.split(',').map(s => s.trim()).filter(Boolean),
-      experience: [],
-      summary: '',
+      experience: parsedExperience,
+      summary: parsedSummary,
       resumeBase64: newProfileResume
     };
     
@@ -54,6 +114,7 @@ export function Dashboard() {
     setNewProfileRole('');
     setNewProfileSkills('');
     setNewProfileResume('');
+    setIsParsing(false);
     toast.success('Profile created successfully!');
   };
 
@@ -262,20 +323,31 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-8">
-              <button 
-                onClick={() => setIsAddingProfile(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreateProfile}
-                disabled={!newProfileName || !newProfileRole || !newProfileResume}
-                className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white px-5 py-2 rounded-lg text-sm font-medium shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                Create Profile
-              </button>
+            <div className="flex justify-end gap-3 pt-6">
+                <button 
+                  onClick={() => setIsAddingProfile(false)}
+                  className="px-5 py-2.5 rounded-xl text-slate-600 font-medium hover:bg-slate-100 transition-colors"
+                  disabled={isParsing}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleCreateProfile}
+                  disabled={isParsing || !newProfileName || !newProfileRole || !newProfileResume}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isParsing ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Parsing Resume...
+                    </>
+                  ) : (
+                    'Create Profile'
+                  )}
+                </button>
             </div>
           </div>
         </div>

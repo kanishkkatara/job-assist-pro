@@ -13,6 +13,7 @@ export interface ApplicationJob {
   missingKeywords?: string[];
   coverLetter?: string;
   mockInterviewFeedback?: Array<{ question: string, feedback: string }>;
+  tailoredResumeBase64?: string;
 }
 
 interface JobAssistDB extends DBSchema {
@@ -54,6 +55,18 @@ export const updateApplicationStatus = async (id: string, status: ApplicationJob
   const job = await store.get(id);
   if (job) {
     job.status = status;
+    await store.put(job);
+  }
+  await tx.done;
+};
+
+export const updateTailoredResume = async (id: string, base64: string) => {
+  const db = await initDB();
+  const tx = db.transaction('applications', 'readwrite');
+  const store = tx.objectStore('applications');
+  const job = await store.get(id);
+  if (job) {
+    job.tailoredResumeBase64 = base64;
     await store.put(job);
   }
   await tx.done;

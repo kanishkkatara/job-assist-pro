@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStorageSession, useStorageLocal } from '../hooks/useStorage';
 import { CandidateProfile, JobDescription } from '../types';
+import { toast } from 'react-hot-toast';
 
 declare const pdfjsLib: any;
 
@@ -176,18 +177,27 @@ export function AtsMatcher() {
                     document.body.removeChild(link);
                     URL.revokeObjectURL(url);
                     
-                    // We also need to save this generated Blob to IndexedDB for 1-Click Apply
-                    // (But since Blob can't be easily put in IDB without extra handling in our simple schema, 
-                    // we'll implement that in Phase 2).
+                    // Convert Blob to Base64 and save to Job in DB
+                    const reader = new FileReader();
+                    reader.onloadend = async () => {
+                      if (reader.result && jd.id) {
+                        const { updateTailoredResume } = await import('../utils/db');
+                        await updateTailoredResume(jd.id, reader.result as string);
+                        toast.success('Tailored Resume saved to job!');
+                      }
+                    };
+                    reader.readAsDataURL(blob);
+                    
                   } catch (e) {
                     console.error("Failed to generate PDF", e);
                   } finally {
                     setLoading(false);
                   }
                 }} 
-                className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-8 py-3 rounded-xl font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all"
+                className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-8 py-3 rounded-xl font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center justify-center"
+                disabled={loading}
               >
-                Generate Tailored Resume
+                {loading ? 'Generating...' : 'Generate Tailored Resume'}
               </button>
               
               <button 

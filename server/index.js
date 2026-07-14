@@ -27,9 +27,44 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-const { streamText, streamObject } = require('ai');
+const { streamText, streamObject, generateObject } = require('ai');
 const { createOpenAI } = require('@ai-sdk/openai');
 const { z } = require('zod');
+
+app.post('/api/parse-resume', async (req, res) => {
+  try {
+    const { text } = req.body;
+    const apiKey = process.env.OPENAI_API_KEY || req.headers.authorization?.split(' ')[1];
+    if (!apiKey) return res.status(401).json({ error: 'No API key provided' });
+    
+    if (!text || text.length < 50) {
+      return res.status(400).json({ error: 'Text too short or missing' });
+    }
+
+    const openai = createOpenAI({ apiKey });
+    
+    const result = await generateObject({
+      model: openai('gpt-4o-mini'),
+      schema: z.object({
+        summary: z.string().describe('A powerful 2-3 sentence professional summary based on the resume'),
+        experience: z.array(z.object({
+          title: z.string(),
+          company: z.string(),
+          date: z.string(),
+          location: z.string().optional(),
+          bullets: z.array(z.string()).describe('The key achievements/responsibilities')
+        }))
+      }),
+      prompt: `Parse this raw PDF resume text into structured data. Fix any weird formatting or line breaks. Extract all work experience and write a summary. \n\nResume text:\n${text}`,
+      temperature: 0.1,
+    });
+    
+    res.json(result.object);
+  } catch (error) {
+    console.error('Parse Resume Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post('/api/chat', async (req, res) => {
   try {

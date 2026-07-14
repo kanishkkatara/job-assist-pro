@@ -94,10 +94,40 @@ export function Popup() {
             </div>
           </div>
 
-          <button disabled={!jd} style={{ padding: '8px' }}>⚡ Auto-fill Form</button>
+          <button 
+            disabled={!jd || loading === 'autofill'} 
+            style={{ padding: '8px', cursor: jd ? 'pointer' : 'default' }}
+            onClick={async () => {
+              setLoading('autofill');
+              try {
+                // Fetch the job to get the tailored resume if available
+                const { getApplications } = await import('../utils/db');
+                const apps = await getApplications();
+                const job = apps.find(a => a.id === jd.id);
+                
+                const resumeToAttach = job?.tailoredResumeBase64 || activeProfile.resumeBase64;
+                
+                if (resumeToAttach) {
+                  await sendToContent({ 
+                    type: 'ATTACH_RESUME', 
+                    base64Pdf: resumeToAttach,
+                    filename: job?.tailoredResumeBase64 ? `Tailored_Resume_${jd.company}.pdf` : 'Resume.pdf'
+                  });
+                }
+                
+                const res = await sendToContent({ type: 'FILL_FORM', profile: activeProfile, jd });
+                if (res.error) throw new Error(res.error);
+                showBanner('✅ Auto-fill complete');
+              } catch (e: any) {
+                showBanner(`❌ Error: ${e.message}`);
+              }
+              setLoading(null);
+            }}
+          >
+            {loading === 'autofill' ? 'Filling...' : '⚡ Auto-fill Form'}
+          </button>
           <button disabled={!jd} style={{ padding: '8px' }}>💬 Answer Questions</button>
           <button disabled={!jd} style={{ padding: '8px' }}>📝 Generate Cover Letter</button>
-          
           <button 
             style={{ padding: '8px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '4px', marginTop: '8px', cursor: 'pointer' }}
             onClick={() => {

@@ -146,7 +146,7 @@ export function KanbanBoard() {
 
   const handleCardClick = (job: ApplicationJob) => {
     setSelectedJob(job);
-    setCurrentJD({ title: job.title, company: job.company, text: job.jdText });
+    setCurrentJD({ id: job.id, title: job.title, company: job.company, text: job.jdText });
   };
 
   return (
