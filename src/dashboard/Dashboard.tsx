@@ -41,6 +41,8 @@ export function Dashboard() {
       name: newProfileName,
       targetRole: newProfileRole,
       skills: newProfileSkills.split(',').map(s => s.trim()).filter(Boolean),
+      experience: [],
+      summary: '',
       resumeBase64: newProfileResume
     };
     

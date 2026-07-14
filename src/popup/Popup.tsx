@@ -97,6 +97,34 @@ export function Popup() {
           <button disabled={!jd} style={{ padding: '8px' }}>⚡ Auto-fill Form</button>
           <button disabled={!jd} style={{ padding: '8px' }}>💬 Answer Questions</button>
           <button disabled={!jd} style={{ padding: '8px' }}>📝 Generate Cover Letter</button>
+          
+          <button 
+            style={{ padding: '8px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '4px', marginTop: '8px', cursor: 'pointer' }}
+            onClick={() => {
+              chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const tab = tabs[0];
+                if (!tab || !tab.id) return showBanner('❌ No active tab');
+                
+                // @ts-ignore
+                chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, (streamId) => {
+                  if (!streamId) return showBanner('❌ tabCapture failed');
+                  
+                  chrome.runtime.sendMessage({
+                    type: "START_COPILOT",
+                    streamId: streamId
+                  }, (res) => {
+                    if (res && res.success) {
+                      showBanner('🎙️ Copilot Listening...');
+                    } else {
+                      showBanner('❌ Failed to start Copilot');
+                    }
+                  });
+                });
+              });
+            }}
+          >
+            🎙️ Start Live Interview Copilot
+          </button>
         </div>
       )}
       

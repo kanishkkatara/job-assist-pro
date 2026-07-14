@@ -437,6 +437,48 @@
       return true;
     }
 
+    if (message.type === 'ATTACH_RESUME') {
+      try {
+        const fileInput = document.querySelector('input[type="file"]');
+        if (!fileInput) {
+          sendResponse({ success: false, error: 'No file input found' });
+          return true;
+        }
+
+        // Convert base64 to Blob
+        const byteCharacters = atob(message.base64Pdf.split(',')[1] || message.base64Pdf);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+
+        // Create File object
+        const file = new File([blob], message.filename || 'Resume.pdf', {
+          type: 'application/pdf',
+          lastModified: new Date().getTime()
+        });
+
+        // Use DataTransfer to construct FileList
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        
+        // Assign to input
+        fileInput.files = dataTransfer.files;
+
+        // Dispatch React/Angular synthetic events
+        fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+        sendResponse({ success: true });
+      } catch (err) {
+        console.error('[JobAssist] Attach file error:', err);
+        sendResponse({ success: false, error: err.message });
+      }
+      return true;
+    }
+
     if (message.type === 'GET_QUESTIONS') {
       const questions = detectOpenQuestions().map(q => ({
         id: q.id,

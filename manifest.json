@@ -33,9 +33,11 @@
     "storage",
     "activeTab",
     "scripting",
-    "sidePanel",
-    "contextMenus"
+    "contextMenus",
+    "offscreen",
+    "tabCapture"
   ],
+  "host_permissions": [ ],
   "web_accessible_resources": [
     {
       "resources": ["lib/pdf.worker.min.js"],

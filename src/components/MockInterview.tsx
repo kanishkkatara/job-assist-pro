@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStorageSession, useStorageLocal } from '../hooks/useStorage';
 import { CandidateProfile, JobDescription, AppSettings } from '../types';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
@@ -130,7 +130,7 @@ export function MockInterview() {
       ) : (
         <QuestionBlock 
           key={currentQuestionIndex}
-          question={questions[currentQuestionIndex]}
+          question={questions[currentQuestionIndex] || ''}
           index={currentQuestionIndex}
           total={questions.length}
           initialUserAnswer={userAnswer}

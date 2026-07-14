@@ -112,6 +112,49 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
+let creating;
+async function setupOffscreenDocument(path) {
+  const offscreenUrl = chrome.runtime.getURL(path);
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [offscreenUrl]
+  });
+
+  if (existingContexts.length > 0) return;
+
+  if (creating) {
+    await creating;
+  } else {
+    creating = chrome.offscreen.createDocument({
+      url: path,
+      reasons: [chrome.offscreen.Reason.USER_MEDIA, chrome.offscreen.Reason.AUDIO_PLAYBACK],
+      justification: 'Capture and transcribe interview audio'
+    });
+    await creating;
+    creating = null;
+  }
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'START_COPILOT') {
+    (async () => {
+      try {
+        await setupOffscreenDocument('src/offscreen/offscreen.html');
+        // Send streamId to offscreen document
+        chrome.runtime.sendMessage({
+          action: "process_stream",
+          streamId: message.streamId
+        });
+        sendResponse({ success: true });
+      } catch (e) {
+        console.error("Failed to start copilot", e);
+        sendResponse({ success: false, error: e.message });
+      }
+    })();
+    return true;
+  }
+});
+
 // ─────────────────────────────────────────────
 // Context Menu: Inline Generation
 // ─────────────────────────────────────────────

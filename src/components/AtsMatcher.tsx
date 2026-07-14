@@ -156,12 +156,47 @@ export function AtsMatcher() {
               </div>
             </div>
             
-            <button 
-              onClick={() => setResults(null)} 
-              className="mt-4 text-slate-500 hover:text-slate-800 font-medium transition-colors"
-            >
-              ⟲ Reset Analysis
-            </button>
+            <div className="flex flex-col items-center gap-3 mt-4">
+              <button 
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    const { pdf } = await import('@react-pdf/renderer');
+                    const { ResumeDocument } = await import('./ResumeBuilder');
+                    
+                    const blob = await pdf(<ResumeDocument profile={activeProfile} injectedKeywords={results.missing} />).toBlob();
+                    
+                    // Trigger download
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Tailored_Resume_${jd.company}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    // We also need to save this generated Blob to IndexedDB for 1-Click Apply
+                    // (But since Blob can't be easily put in IDB without extra handling in our simple schema, 
+                    // we'll implement that in Phase 2).
+                  } catch (e) {
+                    console.error("Failed to generate PDF", e);
+                  } finally {
+                    setLoading(false);
+                  }
+                }} 
+                className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-8 py-3 rounded-xl font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all"
+              >
+                Generate Tailored Resume
+              </button>
+              
+              <button 
+                onClick={() => setResults(null)} 
+                className="text-slate-500 hover:text-slate-800 font-medium transition-colors"
+              >
+                ⟲ Reset Analysis
+              </button>
+            </div>
           </div>
         )}
       </div>

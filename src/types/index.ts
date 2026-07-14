@@ -4,6 +4,8 @@ export interface CandidateProfile {
   targetRole: string;
   skills: string[];
   experience: any[];
+  education?: any[];
+  personalInfo?: any;
   summary: string;
   resumeBase64?: string;
 }

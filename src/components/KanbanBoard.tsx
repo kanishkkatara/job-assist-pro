@@ -93,7 +93,7 @@ export function KanbanBoard() {
   const [jobs, setJobs] = useState<ApplicationJob[]>([]);
   const isMounted = React.useRef(true);
   const [selectedJob, setSelectedJob] = useState<ApplicationJob | null>(null);
-  const [, setCurrentJD] = useStorageSession('currentJD', null);
+  const [, setCurrentJD] = useStorageSession<any>('currentJD', null);
 
   useEffect(() => {
     return () => { isMounted.current = false; };
@@ -124,10 +124,6 @@ export function KanbanBoard() {
         
         if (newStatus === 'Interviewing') {
           toast.success('Awesome job landing the interview! 🎉', {
-            action: {
-              label: 'Prep Now',
-              onClick: () => handleCardClick(job)
-            },
             duration: 5000,
           });
         } else {

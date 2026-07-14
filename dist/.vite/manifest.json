@@ -1,62 +1,87 @@
 {
   "../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-xlsFpnnH.js",
+    "file": "assets/crx-manifest.js-DVckpxKY.js",
     "name": "crx-manifest.js",
     "src": "../../../../../@crx/manifest",
     "isEntry": true
   },
-  "_jsx-runtime-CjZ7hKZX.js": {
-    "file": "assets/jsx-runtime-CjZ7hKZX.js",
-    "name": "jsx-runtime",
+  "_db-51_xN2MP.js": {
+    "file": "assets/db-51_xN2MP.js",
+    "name": "db",
     "imports": [
-      "_rolldown-runtime-B-9mzPXz.js"
+      "_rolldown-runtime-BgaNhQyE.js"
     ],
     "css": [
-      "assets/jsx-runtime-Dl9lwULK.css"
+      "assets/db-BJGNMNI_.css"
     ]
   },
-  "_jsx-runtime-Dl9lwULK.css": {
-    "file": "assets/jsx-runtime-Dl9lwULK.css",
-    "src": "_jsx-runtime-Dl9lwULK.css"
+  "_db-BJGNMNI_.css": {
+    "file": "assets/db-BJGNMNI_.css",
+    "src": "_db-BJGNMNI_.css"
   },
-  "_rolldown-runtime-B-9mzPXz.js": {
-    "file": "assets/rolldown-runtime-B-9mzPXz.js",
+  "_rolldown-runtime-BgaNhQyE.js": {
+    "file": "assets/rolldown-runtime-BgaNhQyE.js",
     "name": "rolldown-runtime"
   },
   "background/service-worker.ts": {
-    "file": "assets/service-worker.ts-CEmBeCBB.js",
+    "file": "assets/service-worker.ts-CPoueMHI.js",
     "name": "service-worker.ts",
     "src": "background/service-worker.ts",
     "isEntry": true,
     "imports": [
-      "_rolldown-runtime-B-9mzPXz.js"
+      "_rolldown-runtime-BgaNhQyE.js"
     ],
     "assets": [
-      "assets/content-gUZbSaiC.ts"
+      "assets/content-B1Yp1AGz.ts"
     ]
   },
   "content/content.ts": {
-    "file": "assets/content-gUZbSaiC.ts",
+    "file": "assets/content-B1Yp1AGz.ts",
     "src": "content/content.ts"
   },
   "dashboard/dashboard.html": {
-    "file": "assets/dashboard.html-Dw438ml-.js",
+    "file": "assets/dashboard.html-BuZn8PWb.js",
     "name": "dashboard.html",
     "src": "dashboard/dashboard.html",
     "isEntry": true,
     "imports": [
-      "_rolldown-runtime-B-9mzPXz.js",
-      "_jsx-runtime-CjZ7hKZX.js"
+      "_rolldown-runtime-BgaNhQyE.js",
+      "_db-51_xN2MP.js"
+    ],
+    "dynamicImports": [
+      "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js",
+      "src/components/ResumeBuilder.tsx"
+    ]
+  },
+  "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js": {
+    "file": "assets/react-pdf.browser-Ct_7dheF.js",
+    "name": "react-pdf.browser",
+    "src": "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_rolldown-runtime-BgaNhQyE.js",
+      "_db-51_xN2MP.js"
     ]
   },
   "popup/popup.html": {
-    "file": "assets/popup.html-Q7XpGGWA.js",
+    "file": "assets/popup.html-Bs90IGB9.js",
     "name": "popup.html",
     "src": "popup/popup.html",
     "isEntry": true,
     "imports": [
-      "_rolldown-runtime-B-9mzPXz.js",
-      "_jsx-runtime-CjZ7hKZX.js"
+      "_rolldown-runtime-BgaNhQyE.js",
+      "_db-51_xN2MP.js"
+    ]
+  },
+  "src/components/ResumeBuilder.tsx": {
+    "file": "assets/ResumeBuilder-B8qNmoJo.js",
+    "name": "ResumeBuilder",
+    "src": "src/components/ResumeBuilder.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_rolldown-runtime-BgaNhQyE.js",
+      "_db-51_xN2MP.js",
+      "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js"
     ]
   }
 }
