@@ -29,11 +29,12 @@ function DraggableCard({ job, onDelete, onClick }: { job: ApplicationJob, onDele
       {...listeners}
       {...attributes}
       onClick={() => onClick(job)}
-      className="bg-white p-4 rounded-xl ring-1 ring-slate-200/60 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:ring-slate-300 transition-all group active:scale-95 active:shadow-xl active:shadow-indigo-900/10 active:ring-indigo-500/30 relative"
+      className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-gray-300 transition-all group active:scale-[0.98] relative"
     >
       <button 
         onClick={(e) => { e.stopPropagation(); onDelete(job.id); }}
-        className="absolute top-2 right-2 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none rounded transition-opacity"
+        aria-label={`Delete ${job.title} application`}
         title="Delete"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -64,7 +65,7 @@ function DroppableColumn({ status, jobs, onDelete, onCardClick }: { status: Appl
   return (
     <div 
       ref={setNodeRef}
-      className={`min-w-[280px] w-[280px] rounded-2xl p-4 flex flex-col transition-all border-2 ${isOver ? 'bg-indigo-50/30 border-indigo-300 shadow-[inset_0_0_20px_rgba(99,102,241,0.05)] ring-2 ring-indigo-500/20' : 'bg-slate-50/50 border-dashed border-slate-200/50'}`}
+      className={`min-w-[280px] w-[280px] rounded-lg p-4 flex flex-col transition-all border ${isOver ? 'bg-gray-100 border-gray-400' : 'bg-gray-50 border-gray-200'}`}
     >
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
@@ -193,34 +194,44 @@ export function KanbanBoard() {
               </button>
             </div>
             
-            <div className="flex px-6 bg-white border-b border-slate-200">
+            <div role="tablist" className="flex px-6 bg-white border-b border-gray-200" aria-label="Job Details">
               <button 
+                role="tab"
+                aria-selected={panelTab === 'overview'}
                 onClick={() => setPanelTab('overview')}
-                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'overview' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors focus-visible:outline-none focus-visible:bg-gray-50 ${panelTab === 'overview' ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 Overview
               </button>
               <button 
+                role="tab"
+                aria-selected={panelTab === 'ats'}
                 onClick={() => setPanelTab('ats')}
-                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'ats' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors focus-visible:outline-none focus-visible:bg-gray-50 ${panelTab === 'ats' ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 ATS Matcher
               </button>
               <button 
+                role="tab"
+                aria-selected={panelTab === 'interview'}
                 onClick={() => setPanelTab('interview')}
-                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'interview' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors focus-visible:outline-none focus-visible:bg-gray-50 ${panelTab === 'interview' ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 Mock Interview
               </button>
               <button 
+                role="tab"
+                aria-selected={panelTab === 'negotiation'}
                 onClick={() => setPanelTab('negotiation')}
-                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'negotiation' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors focus-visible:outline-none focus-visible:bg-gray-50 ${panelTab === 'negotiation' ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 Negotiation
               </button>
               <button 
+                role="tab"
+                aria-selected={panelTab === 'intel'}
                 onClick={() => setPanelTab('intel')}
-                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors ${panelTab === 'intel' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors focus-visible:outline-none focus-visible:bg-gray-50 ${panelTab === 'intel' ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 Company Intel
               </button>

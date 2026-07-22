@@ -59,13 +59,13 @@ export function Popup() {
   return (
     <div className="w-[380px] bg-slate-50 text-slate-900 font-sans shadow-xl overflow-hidden flex flex-col h-[500px]">
       {/* Header */}
-      <header className="bg-indigo-600 text-white px-5 py-4 flex justify-between items-center shadow-md z-10 relative">
+      <header className="bg-white/95 backdrop-blur-sm text-neutral-900 border-b border-gray-200 px-4 py-3 flex justify-between items-center sticky top-0 z-10">
         <div className="flex items-center gap-2">
-          <Briefcase size={20} className="text-indigo-200" />
+          <Briefcase size={20} className="text-neutral-500" />
           <h2 className="m-0 text-lg font-bold tracking-tight">JobAssist Pro</h2>
         </div>
-        <button onClick={handleOpenDashboard} className="p-1.5 hover:bg-indigo-500 rounded-lg transition-colors text-indigo-100 hover:text-white" title="Open Dashboard">
-          <LayoutDashboard size={20} />
+        <button onClick={handleOpenDashboard} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-neutral-900" title="Open Dashboard">
+          <LayoutDashboard size={18} />
         </button>
       </header>
 
@@ -73,7 +73,7 @@ export function Popup() {
       <div className="flex-1 overflow-y-auto p-5 pb-20 relative">
         {/* Banner Alert */}
         {banner && (
-          <div className={`mb-4 px-4 py-3 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 text-sm font-medium shadow-sm border ${
+          <div role="alert" aria-live="assertive" className={`mb-4 px-4 py-3 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 text-sm font-medium shadow-sm border ${
             banner.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
           }`}>
             {banner.type === 'success' ? <CheckCircle2 size={18} className="shrink-0 mt-0.5 text-emerald-500" /> : <AlertCircle size={18} className="shrink-0 mt-0.5 text-rose-500" />}
@@ -82,17 +82,21 @@ export function Popup() {
         )}
 
         {/* Profile Selector */}
-        <div className="mb-5 bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+        <div className="relative mb-5 bg-white p-1 rounded-lg shadow-sm border border-gray-200">
           <select 
             value={activeProfileId || ''} 
             onChange={(e) => setActiveProfileId(e.target.value)}
-            className="w-full bg-transparent p-3 text-sm font-medium text-slate-700 outline-none cursor-pointer appearance-none"
+            className="w-full bg-transparent p-2.5 pr-10 text-sm font-medium text-slate-700 outline-none cursor-pointer appearance-none focus-visible:ring-2 focus-visible:ring-neutral-900 rounded-md"
+            aria-label="Select active profile"
           >
             <option value="" disabled>Select your active profile...</option>
             {profiles.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+          </div>
         </div>
 
         {!activeProfileId ? (
@@ -177,7 +181,7 @@ export function Popup() {
                   }
                   setLoading(null);
                 }}
-                className="group flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:shadow-sm"
+                className="group flex items-center justify-between p-3.5 bg-white rounded-lg border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:shadow-sm"
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${jd ? 'bg-amber-100 text-amber-600 group-hover:bg-amber-500 group-hover:text-white' : 'bg-slate-100 text-slate-400'}`}>
@@ -192,14 +196,14 @@ export function Popup() {
               <div className="grid grid-cols-2 gap-2.5">
                 <button 
                   disabled={!jd} 
-                  className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
+                  className="flex flex-col items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
                 >
                   <MessageSquare size={20} className={`transition-colors ${jd ? 'text-indigo-400 group-hover:text-indigo-600' : 'text-slate-300'}`} />
                   <span className="text-xs font-semibold text-slate-600 group-disabled:text-slate-400">Answer Qs</span>
                 </button>
                 <button 
                   disabled={!jd} 
-                  className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
+                  className="flex flex-col items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
                 >
                   <FileText size={20} className={`transition-colors ${jd ? 'text-teal-400 group-hover:text-teal-600' : 'text-slate-300'}`} />
                   <span className="text-xs font-semibold text-slate-600 group-disabled:text-slate-400">Cover Letter</span>
@@ -230,7 +234,7 @@ export function Popup() {
                     });
                   });
                 }}
-                className="mt-2 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white p-3.5 rounded-2xl font-bold shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 transition-all active:scale-[0.98]"
+                className="mt-2 w-full flex items-center justify-center gap-2 bg-neutral-900 text-white hover:bg-neutral-800 shadow-sm border border-neutral-900 px-4 py-3 rounded-lg text-sm font-medium transition-colors active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2"
               >
                 <Mic size={18} />
                 Live Interview Copilot

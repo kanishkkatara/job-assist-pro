@@ -103,13 +103,13 @@ Simulate scraping the web and return 5 highly relevant, realistic job openings t
         <button 
           onClick={handleDiscoverJobs}
           disabled={loading || !activeProfile}
-          className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-sm flex items-center gap-2"
+          className="bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-300 text-white font-semibold py-2 px-4 rounded-md transition-colors shadow-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2"
         >
-          {loading ? '🔍 Sourcing...' : '✨ Find High-Match Jobs'}
+          {loading ? '🔍 Sourcing...' : 'Find High-Match Jobs'}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4" aria-live="polite" aria-busy={loading}>
         {jobs.length === 0 && !loading && (
           <div className="text-center py-20 bg-slate-100 rounded-2xl border border-slate-200 border-dashed">
             <p className="text-slate-500 font-medium">Click "Find High-Match Jobs" to start your automated search.</p>
@@ -117,7 +117,7 @@ Simulate scraping the web and return 5 highly relevant, realistic job openings t
         )}
         
         {jobs.map((job, idx) => (
-          <div key={idx} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-start gap-4 transition-all hover:shadow-md hover:border-indigo-200">
+          <div key={idx} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex items-start gap-4 transition-all hover:shadow-md hover:border-gray-300 animate-in slide-in-from-bottom-4 fade-in duration-500">
             <div className="flex-1">
               <div className="flex justify-between items-start mb-2">
                 <div>
@@ -177,9 +177,22 @@ Simulate scraping the web and return 5 highly relevant, realistic job openings t
         ))}
         
         {loading && jobs.length === 0 && (
-          <div className="text-center py-20">
-            <div className="animate-spin w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full mx-auto mb-4"></div>
-            <p className="text-slate-500 font-medium animate-pulse">Scraping job boards & analyzing matches...</p>
+          <div className="flex flex-col gap-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex gap-4 animate-pulse">
+                <div className="flex-1 space-y-4">
+                  <div className="flex justify-between">
+                    <div className="h-5 bg-gray-200 rounded w-1/3"></div>
+                    <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="space-y-2 pt-2">
+                    <div className="h-3 bg-gray-100 rounded w-full"></div>
+                    <div className="h-3 bg-gray-100 rounded w-5/6"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

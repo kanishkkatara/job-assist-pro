@@ -7,6 +7,7 @@ import { JobDiscovery } from '../components/JobDiscovery';
 import { FunnelAnalytics } from '../components/FunnelAnalytics';
 import { CandidateProfile, AppSettings } from '../types';
 import { Toaster, toast } from 'react-hot-toast';
+import { User, Compass, LayoutDashboard, Inbox, LineChart, Settings } from 'lucide-react';
 
 export function Dashboard() {
   const [profiles, setProfiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
@@ -132,47 +133,52 @@ export function Dashboard() {
       <Toaster position="top-right" />
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 p-6 flex flex-col">
-        <h1 className="text-2xl font-bold mb-8 text-blue-600">JobAssist Pro</h1>
-        <nav className="flex flex-col gap-2 flex-1" role="tablist">
+        <h1 className="text-xl font-bold tracking-tight mb-8 text-neutral-900">JobAssist Pro</h1>
+        <nav className="flex flex-col gap-1.5 flex-1" role="tablist">
           <button 
             role="tab"
             aria-selected={activeTab === 'profiles'}
             onClick={() => setActiveTab('profiles')}
-            className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'profiles' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+            className={`flex items-center gap-3 text-left px-3 py-2 rounded-md transition-colors text-sm font-medium ${activeTab === 'profiles' ? 'bg-gray-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-50 hover:text-neutral-900'}`}
           >
-            👤 Profiles
+            <User size={18} className={activeTab === 'profiles' ? 'text-neutral-900' : 'text-gray-400'} />
+            Profiles
           </button>
           <button 
             role="tab"
             aria-selected={activeTab === 'discovery'}
             onClick={() => setActiveTab('discovery')}
-            className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'discovery' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+            className={`flex items-center gap-3 text-left px-3 py-2 rounded-md transition-colors text-sm font-medium ${activeTab === 'discovery' ? 'bg-gray-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-50 hover:text-neutral-900'}`}
           >
-            🔭 Discovery
+            <Compass size={18} className={activeTab === 'discovery' ? 'text-neutral-900' : 'text-gray-400'} />
+            Discovery
           </button>
           <button 
             role="tab"
             aria-selected={activeTab === 'kanban'}
             onClick={() => setActiveTab('kanban')}
-            className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'kanban' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+            className={`flex items-center gap-3 text-left px-3 py-2 rounded-md transition-colors text-sm font-medium ${activeTab === 'kanban' ? 'bg-gray-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-50 hover:text-neutral-900'}`}
           >
-            📊 Tracker
+            <LayoutDashboard size={18} className={activeTab === 'kanban' ? 'text-neutral-900' : 'text-gray-400'} />
+            Tracker
           </button>
           <button 
             role="tab"
             aria-selected={activeTab === 'inbox'}
             onClick={() => setActiveTab('inbox' as any)}
-            className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'inbox' as any ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+            className={`flex items-center gap-3 text-left px-3 py-2 rounded-md transition-colors text-sm font-medium ${activeTab === 'inbox' as any ? 'bg-gray-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-50 hover:text-neutral-900'}`}
           >
-            📬 Smart Inbox
+            <Inbox size={18} className={activeTab === 'inbox' ? 'text-neutral-900' : 'text-gray-400'} />
+            Smart Inbox
           </button>
           <button 
             role="tab"
             aria-selected={activeTab === 'analytics'}
             onClick={() => setActiveTab('analytics')}
-            className={`text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'analytics' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+            className={`flex items-center gap-3 text-left px-3 py-2 rounded-md transition-colors text-sm font-medium ${activeTab === 'analytics' ? 'bg-gray-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-50 hover:text-neutral-900'}`}
           >
-            📈 Analytics
+            <LineChart size={18} className={activeTab === 'analytics' ? 'text-neutral-900' : 'text-gray-400'} />
+            Analytics
           </button>
           
           <div className="mt-auto">
@@ -180,9 +186,10 @@ export function Dashboard() {
               role="tab"
               aria-selected={activeTab === 'settings'}
               onClick={() => setActiveTab('settings')}
-              className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 ${activeTab === 'settings' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-900/5 translate-x-1' : 'hover:bg-slate-100/50'}`}
+              className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded-md transition-colors text-sm font-medium ${activeTab === 'settings' ? 'bg-gray-100 text-neutral-900' : 'text-gray-600 hover:bg-gray-50 hover:text-neutral-900'}`}
             >
-              ⚙️ Settings
+              <Settings size={18} className={activeTab === 'settings' ? 'text-neutral-900' : 'text-gray-400'} />
+              Settings
             </button>
           </div>
         </nav>
@@ -194,10 +201,10 @@ export function Dashboard() {
         {activeTab === 'profiles' && (
           <div role="tabpanel" className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold text-slate-800">Profiles</h2>
+              <h2 className="text-2xl font-bold tracking-tight text-neutral-900">Profiles</h2>
               <button 
                 onClick={() => setIsAddingProfile(true)}
-                className="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-500/20 transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2"
               >
                 + New Profile
               </button>
@@ -289,10 +296,10 @@ export function Dashboard() {
                       setActiveProfileId(p.id);
                       toast.success(`Active profile set to ${p.name}`);
                     }}
-                    className={`bg-white p-6 rounded-2xl ring-1 transition-all duration-300 ease-out cursor-pointer group ${
+                    className={`bg-white p-5 rounded-lg border transition-all duration-200 cursor-pointer group ${
                       activeProfileId === p.id 
-                        ? 'ring-indigo-500 shadow-md shadow-indigo-500/10' 
-                        : 'ring-slate-200 hover:ring-indigo-200 hover:shadow-xl hover:shadow-indigo-900/5 hover:-translate-y-1'
+                        ? 'border-neutral-900 shadow-sm ring-1 ring-neutral-900' 
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">

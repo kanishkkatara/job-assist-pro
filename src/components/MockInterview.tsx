@@ -145,7 +145,7 @@ export function MockInterview() {
           <button 
             onClick={handleGenerateQuestions} 
             disabled={isLoadingQuestions}
-            className="bg-gradient-to-r from-indigo-500 to-violet-600 disabled:from-indigo-300 disabled:to-violet-400 text-white px-6 py-3 rounded-xl font-medium shadow-md shadow-indigo-500/20 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all focus:ring-2 focus:ring-indigo-500 focus:outline-none flex items-center gap-2"
+            className="bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-300 text-white px-4 py-2 rounded-md font-medium shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2 flex items-center gap-2"
           >
             {isLoadingQuestions ? (
               <>
@@ -261,10 +261,11 @@ function QuestionBlock({
             />
             <button
               onClick={toggleRecording}
-              className={`absolute bottom-4 right-4 p-3 rounded-full shadow-md transition-all ${isRecording ? 'bg-rose-500 text-white animate-pulse' : 'bg-white text-slate-400 hover:text-indigo-500 ring-1 ring-slate-200 hover:ring-indigo-200'}`}
+              className={`absolute bottom-4 right-4 flex items-center justify-center gap-2 p-2 px-3 rounded-full shadow-sm border transition-all ${isRecording ? 'bg-white border-rose-200 text-rose-500' : 'bg-white border-gray-200 text-gray-400 hover:text-neutral-900 hover:border-gray-300'}`}
               title={isRecording ? 'Stop Recording' : 'Start Dictation'}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              {isRecording && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
               </svg>
             </button>
@@ -272,7 +273,7 @@ function QuestionBlock({
           <button 
             onClick={handleSubmitAnswer} 
             disabled={!localAnswer.trim()}
-            className="self-start bg-gradient-to-r from-emerald-500 to-teal-600 disabled:from-emerald-300 disabled:to-teal-400 text-white px-6 py-3 rounded-xl font-medium shadow-md shadow-emerald-500/20 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            className="self-start bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-300 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2"
           >
             Submit Answer for Feedback
           </button>

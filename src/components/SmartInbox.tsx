@@ -40,8 +40,8 @@ export function SmartInbox() {
   return (
     <div className="max-w-4xl mx-auto py-8 px-6 animate-in fade-in">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
-          <span className="text-4xl">📥</span> Smart Inbox
+        <h2 className="text-2xl font-bold tracking-tight text-neutral-900 flex items-center gap-2">
+          <Mail className="w-6 h-6 text-neutral-500" /> Smart Inbox
         </h2>
         <p className="text-slate-500 mt-2 text-lg">
           AI-drafted replies to recruiters based on your background syncs.
@@ -49,17 +49,17 @@ export function SmartInbox() {
       </div>
 
       {jobs.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-16 text-center text-slate-500 flex flex-col items-center">
-          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 ring-8 ring-slate-50/50">
-            <Mail className="w-10 h-10 text-slate-300" />
+        <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-gray-300 rounded-lg bg-gray-50">
+          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 border border-gray-200">
+            <Mail className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-xl font-bold text-slate-800">Inbox Zero</h3>
-          <p className="mt-2 max-w-sm">No pending drafts to review. We're monitoring your connected Gmail in the background.</p>
+          <h3 className="text-lg font-bold text-neutral-900">Inbox Zero</h3>
+          <p className="mt-2 max-w-sm text-gray-500">No pending drafts to review. We're monitoring your connected Gmail in the background.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
           {jobs.map(job => (
-            <div key={job.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col space-y-4 relative overflow-hidden group hover:border-indigo-300 transition-all">
+            <div key={job.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col space-y-4 relative overflow-hidden group hover:border-gray-300 transition-all animate-in slide-in-from-bottom-4 fade-in duration-500">
               {/* Context Header */}
               <div className="flex justify-between items-start">
                 <div>
@@ -80,14 +80,15 @@ export function SmartInbox() {
               <div className="bg-slate-50 rounded-xl p-5 border border-slate-100 relative">
                 <div className="flex items-center justify-between mb-3 border-b border-slate-200 pb-2">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Drafted Reply</span>
-                  <button className="text-slate-400 hover:text-indigo-500 transition-colors">
+                  <button className="text-gray-400 hover:text-neutral-900 transition-colors" aria-label="Edit Draft">
                     <Edit3 className="w-4 h-4" />
                   </button>
                 </div>
                 <textarea 
-                  className="w-full bg-transparent border-none resize-none focus:ring-0 p-0 text-slate-700 leading-relaxed text-sm min-h-[140px] font-medium"
+                  className="w-full bg-transparent border-none resize-none focus:ring-2 focus:ring-neutral-200 focus:outline-none rounded-md p-2 -ml-2 text-slate-700 leading-relaxed text-sm min-h-[140px] font-medium transition-shadow"
                   defaultValue={job.draftReply}
                   readOnly
+                  aria-label="Drafted reply content"
                 />
               </div>
 
@@ -102,7 +103,7 @@ export function SmartInbox() {
                 </button>
                 <button 
                   onClick={() => sendDraft(job)}
-                  className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-600/20 hover:shadow-lg hover:-translate-y-0.5"
+                  className="flex items-center space-x-2 bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2"
                 >
                   <Send className="w-4 h-4" />
                   <span>Approve & Send</span>
