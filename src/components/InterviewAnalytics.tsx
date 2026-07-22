@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { z } from 'zod';
 import { AppSettings } from '../types';
+import { getAIHeaders } from '../utils/api';
 
 interface Props {
   transcripts: { question: string, answer: string }[];
@@ -23,7 +24,7 @@ export function InterviewAnalytics({ transcripts, settings, onReset }: Props) {
     }),
     fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, {
       ...init,
-      headers: { ...init?.headers, Authorization: `Bearer ${settings.apiKey}` }
+      headers: { ...init?.headers, ...getAIHeaders(settings) }
     })
   });
 

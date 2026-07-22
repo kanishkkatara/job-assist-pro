@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useStorageLocal } from '../hooks/useStorage';
 import { CandidateProfile, AppSettings } from '../types';
 import { addApplication } from '../utils/db';
+import { getAIHeaders } from '../utils/api';
 import { toast } from 'react-hot-toast';
 
 export function JobDiscovery() {
   const [profiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
   const [activeProfileId] = useStorageLocal<string | null>('activeProfileId', null);
-  const [settings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
+  const [settings] = useStorageLocal<AppSettings>('settings', { provider: 'openai', model: 'gpt-4o-mini', openaiKey: '', anthropicKey: '', geminiKey: '', joobleApiKey: '', rapidApiKey: '', jobApiProvider: 'jsearch' });
   
   const [loading, setLoading] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
@@ -20,28 +21,32 @@ export function JobDiscovery() {
     setJobs([]);
 
     try {
-      const prompt = `You are a proactive career agent. The user is looking for a job.
+      let prompt = `You are a proactive career agent. The user is looking for a job.
 Profile Target Role: ${activeProfile.targetRole}
+Location: ${activeProfile.personalInfo?.location || 'Remote'}
 Profile Skills: ${activeProfile.skills?.join(', ') || 'N/A'}
 Experience: ${(activeProfile.experience || []).map(e => e.title + ' at ' + e.company).join(', ')}
 
-Simulate scraping the web and return 5 highly relevant, realistic job openings that perfectly match this candidate. Ensure they are a mix of well-known tech companies and strong startups. Provide a match score (0-100), a 1-sentence reason, and a URL.`;
+Please evaluate the provided live job listings against this profile. Provide a match score (0-100) and a 1-sentence reason why this is a good match. Return the real URL provided in the data.`;
 
       const response = await fetch('http://localhost:3000/api/object', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey}`
-        },
+        headers: getAIHeaders(settings),
         body: JSON.stringify({
           model: settings.model || 'gpt-4o-mini',
           schemaId: 'discovery',
+          query: `${activeProfile.targetRole} ${activeProfile.skills?.slice(0, 3).join(' ') || ''}`.trim(),
+          location: activeProfile.personalInfo?.location || 'Remote',
           messages: [
             { role: 'system', content: prompt }
           ]
         })
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `Server returned ${response.status}`);
+      }
       if (!response.body) throw new Error("No response body");
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");

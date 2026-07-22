@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStorageLocal } from '../hooks/useStorage';
 import { KanbanBoard } from '../components/KanbanBoard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -9,10 +9,23 @@ import { CandidateProfile, AppSettings } from '../types';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { Toaster, toast } from 'react-hot-toast';
 import { User, Compass, LayoutDashboard, Inbox, LineChart, Settings, Trash2, Eye, X, Pencil, CheckCircle, Upload, FileText, Briefcase, GraduationCap } from 'lucide-react';
+import { getAIHeaders } from '../utils/api';
 
 export function Dashboard() {
   const [profiles, setProfiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
-  const [settings, setSettings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
+  const [settings, setSettings] = useStorageLocal<AppSettings>('settings', { 
+    provider: 'openai', 
+    model: 'gpt-4o-mini',
+    openaiKey: '',
+    anthropicKey: '',
+    geminiKey: ''
+  });
+
+  useEffect(() => {
+    if (settings.apiKey && !settings.openaiKey) {
+      setSettings({ ...settings, openaiKey: settings.apiKey, provider: settings.provider || 'openai' });
+    }
+  }, [settings]);
   const [activeTab, setActiveTab] = useState<'profiles' | 'settings' | 'kanban' | 'ats' | 'interview' | 'inbox' | 'discovery' | 'analytics'>('profiles');
   const [activeProfileId, setActiveProfileId] = useStorageLocal<string | null>('activeProfileId', null);
 
@@ -164,10 +177,7 @@ export function Dashboard() {
 
         const response = await fetch('http://localhost:3000/api/parse-resume', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${settings.apiKey}`,
-          },
+          headers: getAIHeaders(settings),
           body: JSON.stringify({ text: resumeText })
         });
 
@@ -332,18 +342,33 @@ export function Dashboard() {
 
                   {wizardStep === 1 && (
                     <div className="animate-in fade-in slide-in-from-right-4">
-                      <h4 className="text-xl font-bold text-slate-800 mb-4">Step 1: Connect OpenAI</h4>
+                      <h4 className="text-xl font-bold text-slate-800 mb-4">Step 1: Connect AI Provider</h4>
                       <p className="text-slate-600 mb-6">We use your local API key to power the AI features securely. Your key never leaves your browser.</p>
+                      
+                      <select
+                        value={settings.provider || 'openai'}
+                        onChange={(e) => updateSettings('provider', e.target.value)}
+                        className="w-full p-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none mb-4 bg-white"
+                      >
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="google">Google (Gemini)</option>
+                      </select>
+
                       <input 
                         type="password" 
-                        value={settings.apiKey || ''} 
-                        onChange={(e) => updateSettings('apiKey', e.target.value)}
+                        value={settings.provider === 'anthropic' ? (settings.anthropicKey || '') : settings.provider === 'google' ? (settings.geminiKey || '') : (settings.openaiKey || settings.apiKey || '')} 
+                        onChange={(e) => {
+                          if (settings.provider === 'anthropic') updateSettings('anthropicKey', e.target.value);
+                          else if (settings.provider === 'google') updateSettings('geminiKey', e.target.value);
+                          else updateSettings('openaiKey', e.target.value);
+                        }}
                         className="w-full p-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none mb-6"
-                        placeholder="sk-..."
+                        placeholder={settings.provider === 'anthropic' ? "sk-ant-..." : settings.provider === 'google' ? "AIza..." : "sk-..."}
                       />
                       <button 
                         onClick={() => setWizardStep(2)}
-                        disabled={!settings.apiKey}
+                        disabled={!(settings.provider === 'anthropic' ? settings.anthropicKey : settings.provider === 'google' ? settings.geminiKey : (settings.openaiKey || settings.apiKey))}
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50"
                       >
                         Continue
@@ -484,14 +509,33 @@ export function Dashboard() {
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Settings</h2>
             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
               <div className="mb-6">
-                <label htmlFor="apiKey" className="block mb-2 font-medium text-gray-700">OpenAI API Key</label>
+                <label htmlFor="provider" className="block mb-2 font-medium text-gray-700">AI Provider</label>
+                <select
+                  id="provider"
+                  value={settings.provider || 'openai'}
+                  onChange={(e) => updateSettings('provider', e.target.value)}
+                  className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white"
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="google">Google (Gemini)</option>
+                </select>
+              </div>
+              <div className="mb-6">
+                <label htmlFor="apiKey" className="block mb-2 font-medium text-gray-700">
+                  {settings.provider === 'anthropic' ? 'Anthropic API Key' : settings.provider === 'google' ? 'Google Gemini API Key' : 'OpenAI API Key'}
+                </label>
                 <input 
                   id="apiKey"
                   type="password" 
-                  value={settings.apiKey || ''} 
-                  onChange={(e) => updateSettings('apiKey', e.target.value)}
+                  value={settings.provider === 'anthropic' ? (settings.anthropicKey || '') : settings.provider === 'google' ? (settings.geminiKey || '') : (settings.openaiKey || settings.apiKey || '')} 
+                  onChange={(e) => {
+                    if (settings.provider === 'anthropic') updateSettings('anthropicKey', e.target.value);
+                    else if (settings.provider === 'google') updateSettings('geminiKey', e.target.value);
+                    else updateSettings('openaiKey', e.target.value);
+                  }}
                   className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="sk-..."
+                  placeholder={settings.provider === 'anthropic' ? "sk-ant-..." : settings.provider === 'google' ? "AIza..." : "sk-..."}
                 />
                 <p className="text-sm text-gray-500 mt-2">Your key is stored locally and securely sent to the local proxy.</p>
               </div>
@@ -503,10 +547,69 @@ export function Dashboard() {
                   onChange={(e) => updateSettings('model', e.target.value)}
                   className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white cursor-pointer"
                 >
-                  <option value="gpt-4o-mini">GPT-4o Mini (Fast & Cheap)</option>
-                  <option value="gpt-4o">GPT-4o (Most Capable)</option>
+                  {settings.provider === 'anthropic' ? (
+                    <>
+                      <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet (Best overall)</option>
+                      <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fast & Cheap)</option>
+                    </>
+                  ) : settings.provider === 'google' ? (
+                    <>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro (Most Capable)</option>
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="gpt-4o-mini">GPT-4o Mini (Fast & Cheap)</option>
+                      <option value="gpt-4o">GPT-4o (Most Capable)</option>
+                    </>
+                  )}
                 </select>
               </div>
+            </div>
+            
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 mt-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Job Search API</h3>
+              
+              <div className="mb-4">
+                <label htmlFor="jobApiProvider" className="block mb-2 font-medium text-gray-700">API Provider</label>
+                <select 
+                  id="jobApiProvider"
+                  value={settings.jobApiProvider || 'jsearch'}
+                  onChange={(e) => updateSettings('jobApiProvider', e.target.value)}
+                  className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white cursor-pointer"
+                >
+                  <option value="jsearch">Google Jobs via JSearch (Best Global Coverage)</option>
+                  <option value="jooble">Jooble API (Great High-Volume Aggregator)</option>
+                </select>
+              </div>
+
+              {settings.jobApiProvider === 'jooble' ? (
+                <div className="mb-4">
+                  <label htmlFor="joobleapi" className="block mb-2 font-medium text-gray-700">Jooble API Key</label>
+                  <input 
+                    id="joobleapi"
+                    type="password" 
+                    value={settings.joobleApiKey || ''} 
+                    onChange={(e) => updateSettings('joobleApiKey', e.target.value)}
+                    className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                    placeholder="Get a free key from Jooble Partner Program"
+                  />
+                  <p className="text-sm text-gray-500 mt-2">Required for live Job Discovery. Get it free at <a href="https://jooble.org/api/about" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Jooble API</a>.</p>
+                </div>
+              ) : (
+                <div className="mb-4">
+                  <label htmlFor="rapidapi" className="block mb-2 font-medium text-gray-700">RapidAPI Key (JSearch)</label>
+                  <input 
+                    id="rapidapi"
+                    type="password" 
+                    value={settings.rapidApiKey || ''} 
+                    onChange={(e) => updateSettings('rapidApiKey', e.target.value)}
+                    className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                    placeholder="Sign up on RapidAPI for JSearch"
+                  />
+                  <p className="text-sm text-gray-500 mt-2">Required for live Job Discovery. Get 100 free searches/mo at <a href="https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">RapidAPI</a>.</p>
+                </div>
+              )}
             </div>
             
             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 mt-6">

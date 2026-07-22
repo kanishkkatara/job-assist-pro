@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStorageLocal, useStorageSession } from '../hooks/useStorage';
 import { addApplication } from '../utils/db';
+import { getAIHeaders } from '../utils/api';
 import { Settings, LayoutDashboard, Briefcase, Zap, MessageSquare, FileText, Mic, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 import '../index.css'; // Ensure tailwind is imported
 
@@ -75,10 +76,7 @@ Task: Cross-reference the profile against the Job Description to deeply deduce t
       
       const response = await fetch('http://localhost:3000/api/generate', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey}`
-        },
+        headers: getAIHeaders(settings),
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           prompt
@@ -267,10 +265,7 @@ Respond with ONLY a raw JSON object where the keys are the exact question IDs in
 
                       const aiRes = await fetch('http://localhost:3000/api/generate', {
                         method: 'POST',
-                        headers: { 
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${settings.apiKey}`
-                        },
+                        headers: getAIHeaders(settings),
                         body: JSON.stringify({ model: 'gpt-4o-mini', prompt })
                       });
                       
@@ -337,10 +332,7 @@ Respond with ONLY a raw JSON object where the keys are the exact question IDs in
 
                         const aiRes = await fetch('http://localhost:3000/api/generate', {
                           method: 'POST',
-                          headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${settings.apiKey}`
-                          },
+                          headers: getAIHeaders(settings),
                           body: JSON.stringify({ model: 'gpt-4o-mini', prompt })
                         });
                         

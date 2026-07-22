@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStorageSession, useStorageLocal } from '../hooks/useStorage';
 import { CandidateProfile, JobDescription, AppSettings } from '../types';
+import { getAIHeaders } from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { CoverLetterGenerator } from './CoverLetterGenerator';
 
@@ -10,7 +11,7 @@ export function AtsMatcher() {
   const [jd] = useStorageSession<JobDescription | null>('currentJD', null);
   const [profiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
   const [activeProfileId] = useStorageLocal<string | null>('activeProfileId', null);
-  const [settings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
+  const [settings] = useStorageLocal<AppSettings>('settings', { provider: 'openai', model: 'gpt-4o-mini', openaiKey: '', anthropicKey: '', geminiKey: '', joobleApiKey: '', rapidApiKey: '', jobApiProvider: 'jsearch' });
 
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<{ score: number, strengths: string[], weaknesses: string[], suggestions: any[] } | null>(null);
@@ -51,10 +52,7 @@ export function AtsMatcher() {
       const response = await fetch('http://localhost:3000/api/object', {
         method: 'POST',
         signal: abortControllerRef.current.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey}`
-        },
+        headers: getAIHeaders(settings),
         body: JSON.stringify({
           model: settings.model || 'gpt-4o-mini',
           schemaId: 'ats-review',

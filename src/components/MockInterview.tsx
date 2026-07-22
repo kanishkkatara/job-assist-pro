@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStorageSession, useStorageLocal } from '../hooks/useStorage';
 import { CandidateProfile, JobDescription, AppSettings } from '../types';
+import { getAIHeaders } from '../utils/api';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { z } from 'zod';
 import { InterviewAnalytics } from './InterviewAnalytics';
@@ -9,7 +10,7 @@ export function MockInterview() {
   const [jd] = useStorageSession<JobDescription | null>('currentJD', null);
   const [profiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
   const [activeProfileId] = useStorageLocal<string | null>('activeProfileId', null);
-  const [settings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
+  const [settings] = useStorageLocal<AppSettings>('settings', { provider: 'openai', model: 'gpt-4o-mini', openaiKey: '', anthropicKey: '', geminiKey: '', joobleApiKey: '', rapidApiKey: '', jobApiProvider: 'jsearch' });
 
   const activeProfile = profiles.find(p => p.id === activeProfileId);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -39,7 +40,7 @@ export function MockInterview() {
     schema: z.object({ questions: z.array(z.string()) }),
     fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, {
       ...init,
-      headers: { ...init?.headers, Authorization: `Bearer ${settings.apiKey}` }
+      headers: { ...init?.headers, ...getAIHeaders(settings) }
     })
   });
 
@@ -217,7 +218,7 @@ function QuestionBlock({
     }),
     fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, {
       ...init,
-      headers: { ...init?.headers, Authorization: `Bearer ${settings.apiKey}` }
+      headers: { ...init?.headers, ...getAIHeaders(settings) }
     })
   });
 

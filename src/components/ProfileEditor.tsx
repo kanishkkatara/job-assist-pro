@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CandidateProfile, AppSettings } from '../types';
 import { X, Upload, CheckCircle, Plus, Trash2, ChevronRight, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { getAIHeaders } from '../utils/api';
 
 interface ProfileEditorProps {
   initialProfile?: CandidateProfile | null;
@@ -70,10 +71,7 @@ export function ProfileEditor({ initialProfile, settings, onSave, onCancel }: Pr
       
       const response = await fetch('http://localhost:3000/api/parse-resume', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey}`,
-        },
+        headers: getAIHeaders(settings),
         body: JSON.stringify({ text: resumeText })
       });
 

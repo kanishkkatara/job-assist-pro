@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { AppSettings, JobDescription, CandidateProfile } from '../types';
+import { getAIHeaders } from '../utils/api';
 
 interface Props {
   jd: JobDescription;
@@ -36,10 +37,7 @@ Constraints:
 
       const response = await fetch('http://localhost:3000/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey}`
-        },
+        headers: getAIHeaders(settings),
         body: JSON.stringify({
           model: settings.model || 'gpt-4o-mini',
           messages: [{ role: 'user', content: prompt }]

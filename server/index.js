@@ -47,6 +47,22 @@ const PORT = process.env.PORT || 3000;
 
 const { streamText, streamObject, generateObject, generateText } = require('ai');
 const { createOpenAI } = require('@ai-sdk/openai');
+const { createAnthropic } = require('@ai-sdk/anthropic');
+const { createGoogleGenerativeAI } = require('@ai-sdk/google');
+
+function getAIModel(provider, modelName, apiKey) {
+  if (provider === 'anthropic') {
+    const anthropic = createAnthropic({ apiKey });
+    return anthropic(modelName || 'claude-3-5-sonnet-20240620');
+  } else if (provider === 'google') {
+    const google = createGoogleGenerativeAI({ apiKey });
+    return google(modelName || 'gemini-1.5-pro');
+  } else {
+    // Default to OpenAI
+    const openai = createOpenAI({ apiKey });
+    return openai(modelName || 'gpt-4o-mini');
+  }
+}
 const { z } = require('zod');
 const pdfParse = require('pdf-parse');
 
@@ -67,17 +83,20 @@ app.post('/api/extract-text', async (req, res) => {
 app.post('/api/parse-resume', async (req, res) => {
   try {
     const { text } = req.body;
-    const apiKey = process.env.OPENAI_API_KEY || req.headers.authorization?.split(' ')[1];
+    const apiKey = process.env.AI_API_KEY || req.headers.authorization?.split(' ')[1];
+    const provider = req.headers['x-ai-provider'] || 'openai';
+    const model = req.headers['x-ai-model'] || req.body.model;
+
     if (!apiKey) return res.status(401).json({ error: 'No API key provided' });
     
     if (!text || text.length < 50) {
       return res.status(400).json({ error: 'Text too short or missing' });
     }
 
-    const openai = createOpenAI({ apiKey });
+    const aiModel = getAIModel(provider, model, apiKey);
     
     const result = await generateObject({
-      model: openai('gpt-4o-mini'),
+      model: aiModel,
       schema: z.object({
         summary: z.string().describe('A powerful 2-3 sentence professional summary based on the resume'),
         skills: z.array(z.string()).describe('All technical and professional skills extracted from the resume'),
@@ -123,10 +142,13 @@ app.post('/api/parse-resume', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages, model } = req.body;
-    const apiKey = process.env.OPENAI_API_KEY || req.headers.authorization?.split(' ')[1];
+    const apiKey = process.env.AI_API_KEY || req.headers.authorization?.split(' ')[1];
+    const provider = req.headers['x-ai-provider'] || 'openai';
+    const aiModelName = req.headers['x-ai-model'] || req.body.model;
+    
     if (!apiKey) return res.status(401).json({ error: 'No API key provided' });
 
-    const openai = createOpenAI({ apiKey });
+    const aiModel = getAIModel(provider, aiModelName, apiKey);
     let systemMessage = messages.find(m => m.role === 'system')?.content;
     let filteredMessages = messages.filter(m => m.role !== 'system');
     
@@ -136,7 +158,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     const result = streamText({
-      model: openai(model || 'gpt-4o-mini'),
+      model: aiModel,
       system: systemMessage,
       messages: filteredMessages,
       temperature: 0.7
@@ -153,12 +175,15 @@ app.post('/api/chat', async (req, res) => {
 app.post('/api/generate', async (req, res) => {
   try {
     const { prompt, model } = req.body;
-    const apiKey = process.env.OPENAI_API_KEY || req.headers.authorization?.split(' ')[1];
+    const apiKey = process.env.AI_API_KEY || req.headers.authorization?.split(' ')[1];
+    const provider = req.headers['x-ai-provider'] || 'openai';
+    const aiModelName = req.headers['x-ai-model'] || req.body.model;
+
     if (!apiKey) return res.status(401).json({ error: 'No API key provided' });
 
-    const openai = createOpenAI({ apiKey });
+    const aiModel = getAIModel(provider, aiModelName, apiKey);
     const { text } = await generateText({
-      model: openai(model || 'gpt-4o-mini'),
+      model: aiModel,
       prompt,
       temperature: 0.7
     });
@@ -172,11 +197,14 @@ app.post('/api/generate', async (req, res) => {
 
 app.post('/api/object', async (req, res) => {
   try {
-    const { messages, model, schemaId } = req.body;
-    const apiKey = process.env.OPENAI_API_KEY || req.headers.authorization?.split(' ')[1];
+    const { messages, model, schemaId, query, location } = req.body;
+    const apiKey = process.env.AI_API_KEY || req.headers.authorization?.split(' ')[1];
+    const provider = req.headers['x-ai-provider'] || 'openai';
+    const aiModelName = req.headers['x-ai-model'] || req.body.model;
+
     if (!apiKey) return res.status(401).json({ error: 'No API key provided' });
 
-    const openai = createOpenAI({ apiKey });
+    const aiModel = getAIModel(provider, aiModelName, apiKey);
     
     // Choose schema based on schemaId from client
     let schema;
@@ -248,8 +276,82 @@ app.post('/api/object', async (req, res) => {
       systemMessage = undefined;
     }
 
+    // --- Live Job Search Intercept ---
+    if (schemaId === 'discovery') {
+      const jobApiProvider = req.headers['x-job-api-provider'] || 'jsearch';
+      
+      try {
+        let jobsData = [];
+        
+        if (jobApiProvider === 'jooble') {
+          const joobleApiKey = req.headers['x-jooble-api-key'];
+          if (!joobleApiKey) {
+            return res.status(400).json({ error: "Missing Jooble API Key. Please configure it in Settings." });
+          }
+          
+          const fetchRes = await fetch(`https://jooble.org/api/${joobleApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keywords: query, location: location })
+          });
+          if (!fetchRes.ok) throw new Error(`Jooble API returned ${fetchRes.status}`);
+          
+          const data = await fetchRes.json();
+          if (data && data.jobs && data.jobs.length > 0) {
+            jobsData = data.jobs.slice(0, 15).map(j => ({
+              title: j.title,
+              company: j.company,
+              location: j.location,
+              description: j.snippet ? j.snippet.substring(0, 500) + '...' : '',
+              url: j.link
+            }));
+          }
+        } else if (jobApiProvider === 'jsearch') {
+          const rapidApiKey = req.headers['x-rapidapi-key'];
+          if (!rapidApiKey) {
+            return res.status(400).json({ error: "Missing RapidAPI Key for JSearch. Please configure it in Settings." });
+          }
+          
+          const fetchRes = await fetch(`https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query + ' in ' + location)}&page=1&num_pages=1&date_posted=3days`, {
+            method: 'GET',
+            headers: {
+              'x-rapidapi-key': rapidApiKey,
+              'x-rapidapi-host': 'jsearch.p.rapidapi.com'
+            }
+          });
+          if (!fetchRes.ok) throw new Error(`JSearch API returned ${fetchRes.status}`);
+          
+          const data = await fetchRes.json();
+          if (data && data.data && data.data.length > 0) {
+            jobsData = data.data.slice(0, 15).map(j => ({
+              title: j.job_title,
+              company: j.employer_name,
+              location: j.job_city + ', ' + j.job_state,
+              description: j.job_description ? j.job_description.substring(0, 500) + '...' : '',
+              url: j.job_apply_link || j.job_google_link
+            }));
+          }
+        }
+
+        if (jobsData.length > 0) {
+          const contextString = `\n\nHere are the LIVE job postings fetched from ${jobApiProvider}:\n` + JSON.stringify(jobsData, null, 2);
+          if (systemMessage) {
+            systemMessage += contextString;
+          } else {
+            filteredMessages[0].content += contextString;
+          }
+        } else {
+          return res.status(400).json({ error: `No live jobs found for your criteria using ${jobApiProvider}. Try broadening your skills or target role.` });
+        }
+      } catch (e) {
+        console.error(`Failed to fetch live jobs (${jobApiProvider}):`, e.message);
+        return res.status(400).json({ error: `Failed to fetch live jobs from ${jobApiProvider}: ${e.message}` });
+      }
+    }
+    // --------------------------------
+
     const result = streamObject({
-      model: openai(model || 'gpt-4o-mini'),
+      model: aiModel,
       schema,
       system: systemMessage,
       messages: filteredMessages,

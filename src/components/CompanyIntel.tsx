@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { z } from 'zod';
 import { AppSettings } from '../types';
+import { getAIHeaders } from '../utils/api';
 
 interface Props {
   company: string;
@@ -22,7 +23,7 @@ export function CompanyIntel({ company, settings }: Props) {
     }),
     fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, {
       ...init,
-      headers: { ...init?.headers, Authorization: `Bearer ${settings.apiKey}` }
+      headers: { ...init?.headers, ...getAIHeaders(settings) }
     })
   });
 

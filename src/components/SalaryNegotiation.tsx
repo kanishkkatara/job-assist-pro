@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStorageLocal } from '../hooks/useStorage';
 import { AppSettings } from '../types';
 import { ApplicationJob } from '../utils/db';
+import { getAIHeaders } from '../utils/api';
 
 interface Props {
   job: ApplicationJob;
@@ -14,7 +15,7 @@ export function SalaryNegotiation({ job }: Props) {
   
   const [loading, setLoading] = useState(false);
   const [script, setScript] = useState<string | null>(null);
-  const [settings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
+  const [settings] = useStorageLocal<AppSettings>('settings', { provider: 'openai', model: 'gpt-4o-mini', openaiKey: '', anthropicKey: '', geminiKey: '', joobleApiKey: '', rapidApiKey: '', jobApiProvider: 'jsearch' });
 
   const handleGenerateScript = async () => {
     if (!settings.apiKey) return;
@@ -33,10 +34,7 @@ Draft a highly professional, tactful, but firm salary negotiation email to the r
 
       const response = await fetch('http://localhost:3000/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey}`
-        },
+        headers: getAIHeaders(settings),
         body: JSON.stringify({
           model: settings.model || 'gpt-4o-mini',
           messages: [

@@ -96,7 +96,7 @@ export function KanbanBoard() {
   const isMounted = React.useRef(true);
   const [selectedJob, setSelectedJob] = useState<ApplicationJob | null>(null);
   const [, setCurrentJD] = useStorageSession<any>('currentJD', null);
-  const [settings] = useStorageLocal<AppSettings>('settings', { apiKey: '', model: 'gpt-4o-mini' });
+  const [settings] = useStorageLocal<AppSettings>('settings', { provider: 'openai', model: 'gpt-4o-mini', openaiKey: '', anthropicKey: '', geminiKey: '', joobleApiKey: '', rapidApiKey: '', jobApiProvider: 'jsearch' });
   const [panelTab, setPanelTab] = useState<'overview' | 'ats' | 'interview' | 'negotiation' | 'intel'>('overview');
 
   useEffect(() => {

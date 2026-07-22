@@ -13,8 +13,8 @@
     "file": "assets/lucide-react-BmfNtXur.css",
     "src": "_lucide-react-BmfNtXur.css"
   },
-  "_lucide-react-CzfM87Iw.js": {
-    "file": "assets/lucide-react-CzfM87Iw.js",
+  "_lucide-react-D8yjSbPb.js": {
+    "file": "assets/lucide-react-D8yjSbPb.js",
     "name": "lucide-react",
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js"
@@ -60,13 +60,13 @@
     ]
   },
   "dashboard/dashboard.html": {
-    "file": "assets/dashboard.html-B5QFqevq.js",
+    "file": "assets/dashboard.html-rP4-kYvf.js",
     "name": "dashboard.html",
     "src": "dashboard/dashboard.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-CzfM87Iw.js",
+      "_lucide-react-D8yjSbPb.js",
       "_preload-helper-Dgt75Wkz.js"
     ],
     "dynamicImports": [
@@ -76,23 +76,23 @@
     ]
   },
   "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js": {
-    "file": "assets/react-pdf.browser-CnpE89mh.js",
+    "file": "assets/react-pdf.browser-BNdUBzVH.js",
     "name": "react-pdf.browser",
     "src": "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js",
     "isDynamicEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-CzfM87Iw.js"
+      "_lucide-react-D8yjSbPb.js"
     ]
   },
   "popup/popup.html": {
-    "file": "assets/popup.html-CkJ5mIhK.js",
+    "file": "assets/popup.html-DrTRxwgJ.js",
     "name": "popup.html",
     "src": "popup/popup.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-CzfM87Iw.js",
+      "_lucide-react-D8yjSbPb.js",
       "_preload-helper-Dgt75Wkz.js"
     ],
     "dynamicImports": [
@@ -100,13 +100,13 @@
     ]
   },
   "src/components/ResumeBuilder.tsx": {
-    "file": "assets/ResumeBuilder-DZClR-Xy.js",
+    "file": "assets/ResumeBuilder-DB3d9ZF0.js",
     "name": "ResumeBuilder",
     "src": "src/components/ResumeBuilder.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-CzfM87Iw.js",
+      "_lucide-react-D8yjSbPb.js",
       "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js"
     ]
   }

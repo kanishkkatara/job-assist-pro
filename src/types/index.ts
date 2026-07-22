@@ -21,6 +21,13 @@ export interface JobDescription {
 }
 
 export interface AppSettings {
-  apiKey: string;
+  provider: 'openai' | 'anthropic' | 'google';
   model: string;
+  openaiKey?: string;
+  anthropicKey?: string;
+  geminiKey?: string;
+  joobleApiKey?: string;
+  rapidApiKey?: string; // For JSearch
+  jobApiProvider?: 'jsearch' | 'jooble';
+  apiKey?: string; // Legacy fallback
 }
