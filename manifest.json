@@ -26,6 +26,12 @@
     "service_worker": "background/service-worker.ts",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.ts"]
+    }
+  ],
   "side_panel": {
     "default_path": "popup/popup.html"
   },
@@ -40,7 +46,8 @@
     "identity",
     "alarms",
     "notifications",
-    "sidePanel"
+    "sidePanel",
+    "clipboardWrite"
   ],
   "oauth2": {
     "client_id": "YOUR_OAUTH_CLIENT_ID_HERE.apps.googleusercontent.com",

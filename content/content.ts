@@ -158,54 +158,102 @@
     return fields;
   }
 
+  let openQuestionsMap = {};
+
   function detectOpenQuestions() {
-    const textareas = Array.from(document.querySelectorAll('textarea, div[contenteditable="true"]')).filter(
-      el => el.offsetParent !== null && !el.disabled
+    const questions = [];
+    openQuestionsMap = {}; // Reset map
+
+    // 1. Text Inputs and Textareas
+    const textFields = Array.from(document.querySelectorAll('textarea, div[contenteditable="true"], input[type="text"]')).filter(
+      el => el.offsetParent !== null && !el.disabled && el.dataset.jobassistFilled !== 'true'
     );
 
-    const questions = [];
-    for (const ta of textareas) {
-      let questionText = '';
+    for (const ta of textFields) {
+      const { labelText } = extractLabel(ta);
+      let questionText = labelText || ta.getAttribute('aria-label') || ta.getAttribute('placeholder') || '';
       
-      // 1. Try to find an explicit <label> via the `id` attribute
-      if (ta.id) {
-        const labelEl = document.querySelector(`label[for="${CSS.escape(ta.id)}"]`);
-        if (labelEl) questionText = labelEl.innerText.trim();
-      }
-
-      // 2. Try looking at previous siblings up the DOM tree (handles obfuscated classes like Ashby)
       if (!questionText) {
         let node = ta;
         for (let i = 0; i < 4 && node; i++) {
-          if (node.previousElementSibling) {
-            const prev = node.previousElementSibling;
-            // Check if it's a typical label/heading element, or a generic div with text
-            const text = prev.innerText?.trim();
-            if (text && text.length > 5) {
-              questionText = text;
-              break;
-            }
+          if (node.previousElementSibling && node.previousElementSibling.innerText) {
+            questionText = node.previousElementSibling.innerText;
+            break;
           }
           node = node.parentElement;
         }
       }
 
-      // 3. Fallbacks
-      if (!questionText) questionText = ta.getAttribute('aria-label') || '';
-      if (!questionText) questionText = ta.getAttribute('placeholder') || '';
-
-      // Clean up common asterisks
       questionText = questionText.replace(/\*/g, '').trim();
-
-      // Only accept if it looks like a real question (ignores generic placeholders like "Type here")
-      if (questionText && questionText.length > 8 && !questionText.match(/^(type here|enter text|optional)/i)) {
-        questions.push({
-          id: ta.id || ta.name || `textarea_${questions.length}`,
+      if (questionText && questionText.length > 10 && !questionText.match(/^(type here|enter text|optional|search)/i)) {
+        const id = ta.id || ta.name || `field_${questions.length}`;
+        const qObj = {
+          id,
+          type: 'text',
           question: questionText.substring(0, 300),
           element: ta,
-        });
+        };
+        questions.push(qObj);
+        openQuestionsMap[id] = qObj;
       }
     }
+
+    // 2. Radio Groups
+    const radios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(
+      el => el.offsetParent !== null && !el.disabled && el.dataset.jobassistFilled !== 'true'
+    );
+    
+    const radioGroups = {};
+    for (const r of radios) {
+      if (r.name) {
+        if (!radioGroups[r.name]) radioGroups[r.name] = [];
+        radioGroups[r.name].push(r);
+      }
+    }
+
+    for (const [name, group] of Object.entries(radioGroups)) {
+      let container = group[0].closest('fieldset, .field, .form-group, div.application-question, div[class*="question"]');
+      let questionText = '';
+      if (container) {
+        const legend = container.querySelector('legend');
+        if (legend) {
+          questionText = legend.innerText;
+        } else {
+           const lines = container.innerText.split('\n').map(l => l.trim()).filter(l => l.length > 10 && !['Yes', 'No', 'True', 'False'].includes(l));
+           if (lines.length > 0) questionText = lines[0];
+        }
+      }
+      
+      const options = group.map(r => {
+        let text = r.value;
+        if (r.id) {
+          try {
+            const l = document.querySelector(`label[for="${CSS.escape(r.id)}"]`);
+            if (l) text = l.innerText;
+          } catch(e) {}
+        }
+        if (!text || text === 'on') {
+          const parentLabel = r.closest('label');
+          if (parentLabel) text = parentLabel.innerText;
+        }
+        return text.trim();
+      }).filter(Boolean);
+
+      questionText = questionText.replace(/\*/g, '').trim();
+
+      if (questionText && questionText.length > 10 && options.length > 0) {
+        const id = `radio_${name}`;
+        const qObj = {
+          id,
+          type: 'radio',
+          question: `${questionText} (Options: ${options.join(', ')})`,
+          element: group,
+        };
+        questions.push(qObj);
+        openQuestionsMap[id] = qObj;
+      }
+    }
+
     return questions;
   }
 
@@ -396,7 +444,12 @@
       }
     }
 
-    return { filled, total: fields.length };
+    const openQuestions = detectOpenQuestions().map(q => ({
+      id: q.id,
+      question: q.question
+    }));
+
+    return { filled, total: fields.length, unansweredQuestions: openQuestions };
   }
 
   // Track right-clicks for the context menu
@@ -406,14 +459,36 @@
   }, true);
 
   function fillAnswer(questionId, answer) {
-    const questions = detectOpenQuestions();
-    const q = questions.find(q => q.id === questionId);
+    const q = openQuestionsMap[questionId];
     if (q) {
-      setNativeValue(q.element, answer);
-      q.element.style.transition = 'box-shadow 0.3s ease';
-      q.element.style.boxShadow = '0 0 0 2px #6C63FF';
-      setTimeout(() => { q.element.style.boxShadow = ''; }, 2000);
-      return true;
+      if (q.type === 'radio') {
+        const targetRadio = q.element.find(r => {
+          let text = r.value;
+          if (r.id) {
+            try {
+              const l = document.querySelector(`label[for="${CSS.escape(r.id)}"]`);
+              if (l) text = l.innerText;
+            } catch(e) {}
+          }
+          if (!text || text === 'on') {
+            const pl = r.closest('label');
+            if (pl) text = pl.innerText;
+          }
+          return text.toLowerCase().includes(answer.toLowerCase()) || answer.toLowerCase().includes(text.toLowerCase());
+        });
+        
+        if (targetRadio) {
+          targetRadio.click();
+          targetRadio.dataset.jobassistFilled = 'true';
+          return true;
+        }
+      } else {
+        setNativeValue(q.element, answer);
+        q.element.style.transition = 'box-shadow 0.3s ease';
+        q.element.style.boxShadow = '0 0 0 2px #6C63FF';
+        setTimeout(() => { q.element.style.boxShadow = ''; }, 2000);
+        return true;
+      }
     }
     return false;
   }
@@ -434,6 +509,17 @@
         console.error('[JobAssist] Form fill error:', err);
         sendResponse({ error: err.message });
       });
+      return true;
+    }
+
+    if (message.type === 'FILL_CUSTOM_ANSWERS') {
+      let filledCount = 0;
+      for (const [id, answer] of Object.entries(message.answers)) {
+        if (fillAnswer(id, answer)) {
+          filledCount++;
+        }
+      }
+      sendResponse({ success: true, filled: filledCount });
       return true;
     }
 

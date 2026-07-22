@@ -5,16 +5,6 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// Apply rate limiting (e.g. 100 requests per 15 minutes per IP)
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
-});
-app.use('/api/', apiLimiter);
-
 const corsOptions = {
   origin: (origin, callback) => {
     const allowedExtensionId = process.env.ALLOWED_EXTENSION_ID;
@@ -30,6 +20,8 @@ const corsOptions = {
       callback(null, true);
     } else if (origin && (origin === 'http://localhost:3000' || origin === 'http://localhost:5173')) {
       callback(null, true);
+    } else if (origin && origin.startsWith('chrome-extension://')) {
+      callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
@@ -37,14 +29,40 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
+
+// Apply rate limiting (e.g. 100 requests per 15 minutes per IP)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
+});
+app.use('/api/', apiLimiter);
+
 // Limit JSON payloads to 500kb to prevent memory exhaustion
 app.use(express.json({ limit: '500kb' }));
 
 const PORT = process.env.PORT || 3000;
 
-const { streamText, streamObject, generateObject } = require('ai');
+const { streamText, streamObject, generateObject, generateText } = require('ai');
 const { createOpenAI } = require('@ai-sdk/openai');
 const { z } = require('zod');
+const pdfParse = require('pdf-parse');
+
+app.post('/api/extract-text', async (req, res) => {
+  try {
+    const { base64 } = req.body;
+    if (!base64) return res.status(400).json({ error: 'No base64 data provided' });
+    
+    const buffer = Buffer.from(base64.split(',')[1] || base64, 'base64');
+    const parsed = await pdfParse(buffer);
+    res.json({ text: parsed.text });
+  } catch (error) {
+    console.error('Extract Text Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post('/api/parse-resume', async (req, res) => {
   try {
@@ -60,19 +78,18 @@ app.post('/api/parse-resume', async (req, res) => {
     
     const result = await generateObject({
       model: openai('gpt-4o-mini'),
-      abortSignal: req.socket,
       schema: z.object({
         summary: z.string().describe('A powerful 2-3 sentence professional summary based on the resume'),
         experience: z.array(z.object({
           title: z.string(),
           company: z.string(),
           date: z.string(),
-          location: z.string().optional(),
+          location: z.string().nullable().describe('Location, if any'),
           bullets: z.array(z.string()).describe('The key achievements/responsibilities')
         }))
       }),
+      system: 'Parse this raw PDF resume text into structured data. Fix any weird formatting or line breaks. Extract all work experience and write a summary.',
       messages: [
-        { role: 'system', content: 'Parse this raw PDF resume text into structured data. Fix any weird formatting or line breaks. Extract all work experience and write a summary.' },
         { role: 'user', content: text }
       ],
       temperature: 0.1,
@@ -93,11 +110,19 @@ app.post('/api/chat', async (req, res) => {
     if (!apiKey) return res.status(401).json({ error: 'No API key provided' });
 
     const openai = createOpenAI({ apiKey });
+    let systemMessage = messages.find(m => m.role === 'system')?.content;
+    let filteredMessages = messages.filter(m => m.role !== 'system');
+    
+    if (filteredMessages.length === 0 && systemMessage) {
+      filteredMessages = [{ role: 'user', content: systemMessage }];
+      systemMessage = undefined;
+    }
+
     const result = streamText({
       model: openai(model || 'gpt-4o-mini'),
-      messages,
-      temperature: 0.7,
-      abortSignal: req.socket,
+      system: systemMessage,
+      messages: filteredMessages,
+      temperature: 0.7
     });
     
     result.pipeTextStreamToResponse(res);
@@ -105,6 +130,26 @@ app.post('/api/chat', async (req, res) => {
     console.error('Proxy Error:', error.message);
     const status = error.name === 'AbortError' ? 499 : 500;
     res.status(status).json({ error: error.message });
+  }
+});
+
+app.post('/api/generate', async (req, res) => {
+  try {
+    const { prompt, model } = req.body;
+    const apiKey = process.env.OPENAI_API_KEY || req.headers.authorization?.split(' ')[1];
+    if (!apiKey) return res.status(401).json({ error: 'No API key provided' });
+
+    const openai = createOpenAI({ apiKey });
+    const { text } = await generateText({
+      model: openai(model || 'gpt-4o-mini'),
+      prompt,
+      temperature: 0.7
+    });
+    
+    res.json({ text });
+  } catch (error) {
+    console.error('Generate Error:', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -178,12 +223,20 @@ app.post('/api/object', async (req, res) => {
       return res.status(400).json({ error: 'Invalid schemaId' });
     }
 
+    let systemMessage = messages.find(m => m.role === 'system')?.content;
+    let filteredMessages = messages.filter(m => m.role !== 'system');
+    
+    if (filteredMessages.length === 0 && systemMessage) {
+      filteredMessages = [{ role: 'user', content: systemMessage }];
+      systemMessage = undefined;
+    }
+
     const result = streamObject({
       model: openai(model || 'gpt-4o-mini'),
       schema,
-      messages,
-      temperature: 0.7,
-      abortSignal: req.socket,
+      system: systemMessage,
+      messages: filteredMessages,
+      temperature: 0.7
     });
     
     result.pipeTextStreamToResponse(res);

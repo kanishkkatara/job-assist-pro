@@ -7,7 +7,7 @@ import { JobDiscovery } from '../components/JobDiscovery';
 import { FunnelAnalytics } from '../components/FunnelAnalytics';
 import { CandidateProfile, AppSettings } from '../types';
 import { Toaster, toast } from 'react-hot-toast';
-import { User, Compass, LayoutDashboard, Inbox, LineChart, Settings } from 'lucide-react';
+import { User, Compass, LayoutDashboard, Inbox, LineChart, Settings, Trash2, Eye, X } from 'lucide-react';
 
 export function Dashboard() {
   const [profiles, setProfiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
@@ -16,6 +16,7 @@ export function Dashboard() {
   const [activeProfileId, setActiveProfileId] = useStorageLocal<string | null>('activeProfileId', null);
 
   const [isAddingProfile, setIsAddingProfile] = useState(false);
+  const [viewingProfile, setViewingProfile] = useState<CandidateProfile | null>(null);
   const [wizardStep, setWizardStep] = useState(1);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileRole, setNewProfileRole] = useState('');
@@ -25,6 +26,19 @@ export function Dashboard() {
   const updateSettings = (key: keyof AppSettings, value: string) => {
     setSettings({ ...settings, [key]: value });
     toast.success('Settings saved automatically');
+  };
+
+  const deleteProfile = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this profile?')) {
+      const newProfiles = profiles.filter(p => p.id !== id);
+      setProfiles(newProfiles);
+      if (activeProfileId === id) {
+        setActiveProfileId(newProfiles.length > 0 ? newProfiles[0].id : null);
+      }
+      toast.success('Profile deleted');
+      if (newProfiles.length === 0) setWizardStep(1);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,24 +57,14 @@ export function Dashboard() {
   const [isParsing, setIsParsing] = useState(false);
 
   const extractTextFromPDF = async (base64Data: string) => {
-    // @ts-ignore
-    const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
-    if (!pdfjsLib) throw new Error("pdfjsLib not loaded");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '../lib/pdf.worker.min.js';
-
-    const pdfData = atob(base64Data.split(',')[1]);
-    const pdfAsArray = new Uint8Array(pdfData.length);
-    for (let i = 0; i < pdfData.length; i++) pdfAsArray[i] = pdfData.charCodeAt(i);
-
-    const pdf = await pdfjsLib.getDocument({ data: pdfAsArray }).promise;
-    let fullText = '';
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      fullText += pageText + ' ';
-    }
-    return fullText;
+    const res = await fetch('http://localhost:3000/api/extract-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64: base64Data })
+    });
+    if (!res.ok) throw new Error('Failed to extract text from PDF');
+    const data = await res.json();
+    return data.text;
   };
 
   const handleCreateProfile = async () => {
@@ -303,10 +307,31 @@ export function Dashboard() {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-xl font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">{p.name}</h3>
-                      {activeProfileId === p.id && (
-                        <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded-full font-bold tracking-wide">ACTIVE</span>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        <h3 className="text-xl font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">{p.name}</h3>
+                        {activeProfileId === p.id && (
+                          <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-bold tracking-wide w-fit">ACTIVE</span>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingProfile(p);
+                          }}
+                          className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-md transition-colors"
+                          title="View Profile"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button 
+                          onClick={(e) => deleteProfile(e, p.id)}
+                          className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"
+                          title="Delete Profile"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-slate-500 font-medium mb-4">{p.targetRole}</p>
                     <div className="flex flex-wrap gap-2">
@@ -503,6 +528,74 @@ export function Dashboard() {
                     'Create Profile'
                   )}
                 </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* View Profile Modal */}
+      {viewingProfile && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-800">{viewingProfile.name}</h3>
+                <p className="text-indigo-600 font-medium">{viewingProfile.targetRole}</p>
+              </div>
+              <button 
+                onClick={() => setViewingProfile(null)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto">
+              <div className="mb-6">
+                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Core Skills</h4>
+                <div className="flex flex-wrap gap-2">
+                  {viewingProfile.skills.map(s => (
+                    <span key={s} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md text-sm font-medium border border-indigo-100">{s}</span>
+                  ))}
+                </div>
+              </div>
+              
+              {viewingProfile.summary && (
+                <div className="mb-8">
+                  <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">AI Generated Summary</h4>
+                  <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">{viewingProfile.summary}</p>
+                </div>
+              )}
+              
+              <div>
+                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Parsed Experience</h4>
+                <div className="space-y-6">
+                  {viewingProfile.experience?.map((exp: any, i: number) => (
+                    <div key={i} className="relative pl-6 border-l-2 border-indigo-100">
+                      <div className="absolute w-3 h-3 bg-indigo-500 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
+                      <h5 className="font-bold text-gray-900 text-lg">{exp.title}</h5>
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
+                        <span className="text-indigo-600">{exp.company}</span>
+                        <span>•</span>
+                        <span>{exp.date}</span>
+                        {exp.location && (
+                          <>
+                            <span>•</span>
+                            <span>{exp.location}</span>
+                          </>
+                        )}
+                      </div>
+                      <ul className="list-disc pl-5 space-y-1.5 text-gray-600 text-sm">
+                        {exp.bullets.map((b: string, j: number) => (
+                          <li key={j} className="leading-relaxed">{b}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  {!viewingProfile.experience?.length && (
+                    <p className="text-gray-500 italic">No experience data could be parsed.</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

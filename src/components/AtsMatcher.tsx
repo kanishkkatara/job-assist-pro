@@ -18,24 +18,14 @@ export function AtsMatcher() {
   const activeProfile = profiles.find(p => p.id === activeProfileId);
 
   const extractTextFromPDF = async (base64Data: string) => {
-    // @ts-ignore
-    const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
-    if (!pdfjsLib) throw new Error("pdfjsLib not loaded");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '../lib/pdf.worker.min.js';
-
-    const pdfData = atob(base64Data.split(',')[1]);
-    const pdfAsArray = new Uint8Array(pdfData.length);
-    for (let i = 0; i < pdfData.length; i++) pdfAsArray[i] = pdfData.charCodeAt(i);
-
-    const pdf = await pdfjsLib.getDocument({ data: pdfAsArray }).promise;
-    let fullText = '';
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      fullText += pageText + ' ';
-    }
-    return fullText;
+    const res = await fetch('http://localhost:3000/api/extract-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64: base64Data })
+    });
+    if (!res.ok) throw new Error('Failed to extract text from PDF');
+    const data = await res.json();
+    return data.text;
   };
 
   const abortControllerRef = React.useRef<AbortController | null>(null);

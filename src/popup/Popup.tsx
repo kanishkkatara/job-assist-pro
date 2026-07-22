@@ -7,10 +7,12 @@ import '../index.css'; // Ensure tailwind is imported
 export function Popup() {
   const [profiles] = useStorageLocal<any[]>('profiles', []);
   const [activeProfileId, setActiveProfileId] = useStorageLocal<string | null>('activeProfileId', null);
+  const [settings] = useStorageLocal<any>('settings', { apiKey: '', model: 'gpt-4o-mini' });
   const [jd, setJd] = useStorageSession<any>('currentJD', null);
   
   const [loading, setLoading] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+  const [generatedLetter, setGeneratedLetter] = useState<string | null>(null);
 
   const activeProfile = profiles.find(p => p.id === activeProfileId);
 
@@ -56,6 +58,41 @@ export function Popup() {
     chrome.runtime.openOptionsPage();
   };
 
+  const handleGenerateCoverLetter = async () => {
+    setLoading('coverLetter');
+    try {
+      showBanner('success', 'Generating cover letter... (this takes a few seconds)');
+      const { resumeBase64, ...profileData } = activeProfile;
+      const prompt = `Write a professional cover letter for the following job description based on my profile.\n\nProfile:\n${JSON.stringify(profileData)}\n\nJob Description:\n${jd?.text}\n\nKeep it concise, enthusiastic, and highly tailored. Just return the letter text.`;
+      
+      const response = await fetch('http://localhost:3000/api/generate', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          prompt
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to generate cover letter');
+      const data = await response.json();
+
+      setGeneratedLetter(data.text);
+      try {
+        await navigator.clipboard.writeText(data.text);
+        showBanner('success', 'Cover letter generated and copied to clipboard! 📋');
+      } catch (err) {
+        showBanner('success', 'Cover letter generated! (Could not auto-copy to clipboard)');
+      }
+    } catch (e: any) {
+      showBanner('error', e.message || 'Failed to generate cover letter');
+    }
+    setLoading(null);
+  };
+
   return (
     <div className="w-[380px] bg-slate-50 text-slate-900 font-sans shadow-xl overflow-hidden flex flex-col h-[500px]">
       {/* Header */}
@@ -78,6 +115,34 @@ export function Popup() {
           }`}>
             {banner.type === 'success' ? <CheckCircle2 size={18} className="shrink-0 mt-0.5 text-emerald-500" /> : <AlertCircle size={18} className="shrink-0 mt-0.5 text-rose-500" />}
             <p className="leading-tight">{banner.msg}</p>
+          </div>
+        )}
+
+        {/* Generated Cover Letter Modal/Section */}
+        {generatedLetter && (
+          <div className="mb-5 p-4 bg-white rounded-xl shadow-sm border border-indigo-100 relative group animate-in fade-in zoom-in-95">
+            <button 
+              onClick={() => setGeneratedLetter(null)}
+              className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+            >
+              <XCircle size={16} />
+            </button>
+            <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              <FileText size={14} />
+              Your Cover Letter
+            </h4>
+            <div className="text-sm text-slate-700 whitespace-pre-wrap max-h-48 overflow-y-auto pr-2 custom-scrollbar select-all">
+              {generatedLetter}
+            </div>
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(generatedLetter);
+                showBanner('success', 'Copied to clipboard!');
+              }}
+              className="mt-3 w-full py-2 bg-indigo-50 text-indigo-700 font-medium text-xs rounded-lg hover:bg-indigo-100 transition-colors"
+            >
+              Copy Again
+            </button>
           </div>
         )}
 
@@ -175,7 +240,40 @@ export function Popup() {
                     
                     const res = await sendToContent({ type: 'FILL_FORM', profile: activeProfile, jd });
                     if (res.error) throw new Error(res.error);
-                    showBanner('success', 'Form fields auto-filled successfully');
+
+                    if (res.unansweredQuestions && res.unansweredQuestions.length > 0) {
+                      showBanner('success', `AI is answering ${res.unansweredQuestions.length} custom questions...`);
+                      const { resumeBase64, ...profileData } = activeProfile;
+                      const prompt = `You are an expert career assistant. Answer the following job application questions based on the candidate's profile and the job description. Keep answers extremely relevant and concise.\n\nProfile: ${JSON.stringify(profileData)}\n\nJD: ${jd?.text}\n\nQuestions:\n${res.unansweredQuestions.map((q: any) => `- [${q.id}] ${q.question}`).join('\n')}\n\nRespond with ONLY a raw JSON object where the keys are the exact question IDs in brackets above, and the values are the generated text answers. Do not include markdown code blocks like \`\`\`json.`;
+
+                      const aiRes = await fetch('http://localhost:3000/api/generate', {
+                        method: 'POST',
+                        headers: { 
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${settings.apiKey}`
+                        },
+                        body: JSON.stringify({ model: 'gpt-4o-mini', prompt })
+                      });
+                      
+                      if (!aiRes.ok) throw new Error('Failed to generate answers for custom questions');
+                      const data = await aiRes.json();
+                      
+                      let answers;
+                      try {
+                        const jsonStr = data.text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        answers = JSON.parse(jsonStr);
+                      } catch(e) {
+                        console.error('Failed to parse AI answers:', data.text);
+                        answers = {};
+                      }
+                      
+                      const fillRes = await sendToContent({ type: 'FILL_CUSTOM_ANSWERS', answers });
+                      if (fillRes.error) throw new Error(fillRes.error);
+                      
+                      showBanner('success', `Form auto-filled and ${fillRes.filled || 0} custom questions answered! ✨`);
+                    } else {
+                      showBanner('success', 'Form fields auto-filled successfully');
+                    }
                   } catch (e: any) {
                     showBanner('error', e.message);
                   }
@@ -196,17 +294,76 @@ export function Popup() {
               <div className="grid grid-cols-2 gap-2.5">
                 <button 
                   disabled={!jd} 
+                  onClick={async () => {
+                    setLoading('answerQs');
+                    try {
+                      const res = await sendToContent({ type: 'FILL_FORM', profile: activeProfile, jd });
+                      if (res.error) throw new Error(res.error);
+
+                      if (res.unansweredQuestions && res.unansweredQuestions.length > 0) {
+                        showBanner('success', `AI is answering ${res.unansweredQuestions.length} custom questions...`);
+                        const { resumeBase64, ...profileData } = activeProfile;
+                        const prompt = `You are an expert career assistant. Answer the following job application questions based on the candidate's profile and the job description. Keep answers extremely relevant and concise.\n\nProfile: ${JSON.stringify(profileData)}\n\nJD: ${jd?.text}\n\nQuestions:\n${res.unansweredQuestions.map((q: any) => `- [${q.id}] ${q.question}`).join('\n')}\n\nRespond with ONLY a raw JSON object where the keys are the exact question IDs in brackets above, and the values are the generated text answers. Do not include markdown code blocks like \`\`\`json.`;
+
+                        const aiRes = await fetch('http://localhost:3000/api/generate', {
+                          method: 'POST',
+                          headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${settings.apiKey}`
+                          },
+                          body: JSON.stringify({ model: 'gpt-4o-mini', prompt })
+                        });
+                        
+                        if (!aiRes.ok) throw new Error('Failed to generate answers for custom questions');
+                        const data = await aiRes.json();
+                        
+                        let answers;
+                        try {
+                          const jsonStr = data.text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                          answers = JSON.parse(jsonStr);
+                        } catch(e) {
+                          answers = {};
+                        }
+                        
+                        const fillRes = await sendToContent({ type: 'FILL_CUSTOM_ANSWERS', answers });
+                        if (fillRes.error) throw new Error(fillRes.error);
+                        
+                        showBanner('success', `${fillRes.filled || 0} custom questions answered! ✨`);
+                      } else {
+                        showBanner('success', 'No open questions detected on this page.');
+                      }
+                    } catch (e: any) {
+                      showBanner('error', e.message);
+                    }
+                    setLoading(null);
+                  }}
                   className="flex flex-col items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
                 >
-                  <MessageSquare size={20} className={`transition-colors ${jd ? 'text-indigo-400 group-hover:text-indigo-600' : 'text-slate-300'}`} />
-                  <span className="text-xs font-semibold text-slate-600 group-disabled:text-slate-400">Answer Qs</span>
+                  {loading === 'answerQs' ? (
+                    <MessageSquare size={20} className="text-indigo-400 animate-pulse" />
+                  ) : (
+                    <MessageSquare size={20} className={`transition-colors ${jd ? 'text-indigo-400 group-hover:text-indigo-600' : 'text-slate-300'}`} />
+                  )}
+                  <span className="text-xs font-semibold text-slate-600 group-disabled:text-slate-400">
+                    {loading === 'answerQs' ? 'Thinking...' : 'Answer Qs'}
+                  </span>
                 </button>
                 <button 
-                  disabled={!jd} 
-                  className="flex flex-col items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
+                  disabled={!jd || loading === 'coverLetter'} 
+                  onClick={handleGenerateCoverLetter}
+                  className="flex flex-col items-center gap-2 p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden"
                 >
-                  <FileText size={20} className={`transition-colors ${jd ? 'text-teal-400 group-hover:text-teal-600' : 'text-slate-300'}`} />
-                  <span className="text-xs font-semibold text-slate-600 group-disabled:text-slate-400">Cover Letter</span>
+                  {loading === 'coverLetter' ? (
+                    <div className="flex flex-col items-center gap-2 animate-pulse">
+                      <FileText size={20} className="text-teal-500" />
+                      <span className="text-xs font-semibold text-teal-600">Drafting...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <FileText size={20} className={`transition-colors ${jd ? 'text-teal-400 group-hover:text-teal-600' : 'text-slate-300'}`} />
+                      <span className="text-xs font-semibold text-slate-600 group-disabled:text-slate-400">Cover Letter</span>
+                    </>
+                  )}
                 </button>
               </div>
 

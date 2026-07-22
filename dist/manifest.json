@@ -26,6 +26,16 @@
     "service_worker": "service-worker-loader.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "js": [
+        "assets/content.ts-loader-ewZUf3w6.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
   "side_panel": {
     "default_path": "popup/popup.html"
   },
@@ -40,7 +50,8 @@
     "identity",
     "alarms",
     "notifications",
-    "sidePanel"
+    "sidePanel",
+    "clipboardWrite"
   ],
   "oauth2": {
     "client_id": "YOUR_OAUTH_CLIENT_ID_HERE.apps.googleusercontent.com",
@@ -55,7 +66,9 @@
         "<all_urls>"
       ],
       "resources": [
-        "lib/pdf.worker.min.js"
+        "lib/pdf.worker.min.js",
+        "assets/rolldown-runtime-BgaNhQyE.js",
+        "assets/content.ts-D9bZQrSD.js"
       ],
       "use_dynamic_url": false
     }
