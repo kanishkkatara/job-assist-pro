@@ -6,8 +6,9 @@ import { SmartInbox } from '../components/SmartInbox';
 import { JobDiscovery } from '../components/JobDiscovery';
 import { FunnelAnalytics } from '../components/FunnelAnalytics';
 import { CandidateProfile, AppSettings } from '../types';
+import { ProfileEditor } from '../components/ProfileEditor';
 import { Toaster, toast } from 'react-hot-toast';
-import { User, Compass, LayoutDashboard, Inbox, LineChart, Settings, Trash2, Eye, X } from 'lucide-react';
+import { User, Compass, LayoutDashboard, Inbox, LineChart, Settings, Trash2, Eye, X, Pencil, CheckCircle, Upload, FileText, Briefcase, GraduationCap } from 'lucide-react';
 
 export function Dashboard() {
   const [profiles, setProfiles] = useStorageLocal<CandidateProfile[]>('profiles', []);
@@ -16,12 +17,41 @@ export function Dashboard() {
   const [activeProfileId, setActiveProfileId] = useStorageLocal<string | null>('activeProfileId', null);
 
   const [isAddingProfile, setIsAddingProfile] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<CandidateProfile | null>(null);
   const [viewingProfile, setViewingProfile] = useState<CandidateProfile | null>(null);
   const [wizardStep, setWizardStep] = useState(1);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileRole, setNewProfileRole] = useState('');
-  const [newProfileSkills, setNewProfileSkills] = useState('');
   const [newProfileResume, setNewProfileResume] = useState('');
+  const [newProfileFileName, setNewProfileFileName] = useState('');
+  const [newProfileSystemPrompt, setNewProfileSystemPrompt] = useState('');
+  const [newProfileAdditionalContext, setNewProfileAdditionalContext] = useState('');
+
+  const resetProfileForm = () => {
+    setNewProfileName('');
+    setNewProfileRole('');
+    setNewProfileResume('');
+    setNewProfileFileName('');
+    setNewProfileSystemPrompt('');
+    setNewProfileAdditionalContext('');
+    setJsonImportContent('');
+    setImportMode('form');
+    setIsAddingProfile(false);
+    setEditingProfile(null);
+  };
+
+  const openEditProfile = (e: React.MouseEvent, profile: CandidateProfile) => {
+    e.stopPropagation();
+    setEditingProfile(profile);
+    setNewProfileName(profile.name);
+    setNewProfileRole(profile.targetRole);
+    setNewProfileResume(profile.resumeBase64 || '');
+    setNewProfileFileName(profile.resumeFileName || '');
+    setNewProfileSystemPrompt(profile.systemPrompt || '');
+    setNewProfileAdditionalContext(profile.additionalContext || '');
+    setImportMode('form');
+    setIsAddingProfile(true);
+  };
 
   const updateSettings = (key: keyof AppSettings, value: string) => {
     setSettings({ ...settings, [key]: value });
@@ -44,6 +74,7 @@ export function Dashboard() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setNewProfileFileName(file.name);
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
@@ -55,6 +86,8 @@ export function Dashboard() {
   };
 
   const [isParsing, setIsParsing] = useState(false);
+  const [importMode, setImportMode] = useState<'form' | 'json'>('form');
+  const [jsonImportContent, setJsonImportContent] = useState('');
 
   const extractTextFromPDF = async (base64Data: string) => {
     const res = await fetch('http://localhost:3000/api/extract-text', {
@@ -67,21 +100,68 @@ export function Dashboard() {
     return data.text;
   };
 
+  const handleSaveFullProfile = (profile: CandidateProfile) => {
+    if (editingProfile) {
+      setProfiles(profiles.map(p => p.id === editingProfile.id ? profile : p));
+      toast.success('Profile updated!');
+    } else {
+      setProfiles([...profiles, profile]);
+      if (!activeProfileId) setActiveProfileId(profile.id);
+      toast.success('Profile created!');
+    }
+    resetProfileForm();
+  };
+
   const handleCreateProfile = async () => {
+    if (importMode === 'json') {
+      try {
+        const parsed = JSON.parse(jsonImportContent);
+        if (!parsed.name || !parsed.targetRole) {
+          throw new Error('JSON must include at least "name" and "targetRole" fields.');
+        }
+        const importedProfile: CandidateProfile = {
+          id: editingProfile ? editingProfile.id : Date.now().toString(),
+          name: parsed.name,
+          targetRole: parsed.targetRole,
+          skills: parsed.skills || [],
+          experience: parsed.experience || [],
+          education: parsed.education || [],
+          personalInfo: parsed.personalInfo || {},
+          summary: parsed.summary || '',
+          additionalContext: parsed.additionalContext || '',
+          systemPrompt: parsed.systemPrompt || '',
+          resumeBase64: parsed.resumeBase64 || '',
+          resumeFileName: parsed.resumeFileName || ''
+        };
+        if (editingProfile) {
+          setProfiles(profiles.map(p => p.id === editingProfile.id ? importedProfile : p));
+          toast.success('Profile updated!');
+        } else {
+          setProfiles([...profiles, importedProfile]);
+          if (!activeProfileId) setActiveProfileId(importedProfile.id);
+          toast.success('Profile imported successfully!');
+        }
+        resetProfileForm();
+        return;
+      } catch (err: any) {
+        toast.error(`Invalid JSON: ${err.message}`);
+        return;
+      }
+    }
+
     if (!newProfileName || !newProfileRole) {
-      toast.error('Please fill in name and target role');
+      toast.error('Please enter a profile name and target role');
       return;
     }
-    
+
     setIsParsing(true);
-    let parsedExperience: any[] = [];
-    let parsedSummary = '';
-    
+    let parsedData: Partial<CandidateProfile> = {};
+
     try {
       if (newProfileResume && settings.apiKey) {
-        toast.loading('Parsing resume...', { id: 'parse-toast' });
+        toast.loading('Parsing resume with AI...', { id: 'parse-toast' });
         const resumeText = await extractTextFromPDF(newProfileResume);
-        
+
         const response = await fetch('http://localhost:3000/api/parse-resume', {
           method: 'POST',
           headers: {
@@ -90,46 +170,63 @@ export function Dashboard() {
           },
           body: JSON.stringify({ text: resumeText })
         });
-        
+
         if (response.ok) {
           const data = await response.json();
-          parsedExperience = data.experience || [];
-          parsedSummary = data.summary || '';
-          toast.success('Resume parsed successfully!', { id: 'parse-toast' });
+          parsedData = {
+            skills: data.skills || [],
+            experience: data.experience || [],
+            education: data.education || [],
+            personalInfo: data.personalInfo || {},
+            summary: data.summary || '',
+          };
+          toast.success('Resume parsed — all fields extracted!', { id: 'parse-toast' });
         } else {
-          throw new Error('Failed to parse resume');
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to parse resume');
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Parsing error', e);
-      toast.error('Failed to parse resume, continuing with empty profile', { id: 'parse-toast' });
+      toast.error(`Parse error: ${e.message}`, { id: 'parse-toast' });
     }
 
-    const newProfile: CandidateProfile = {
-      id: Date.now().toString(),
-      name: newProfileName,
-      targetRole: newProfileRole,
-      skills: newProfileSkills.split(',').map(s => s.trim()).filter(Boolean),
-      experience: parsedExperience,
-      summary: parsedSummary,
-      resumeBase64: newProfileResume
-    };
-    
-    setProfiles([...profiles, newProfile]);
-    if (!activeProfileId) setActiveProfileId(newProfile.id);
-    
-    setIsAddingProfile(false);
-    setNewProfileName('');
-    setNewProfileRole('');
-    setNewProfileSkills('');
-    setNewProfileResume('');
-    setIsParsing(false);
-    
-    if (profiles.length === 0) {
-      setWizardStep(3);
+    if (editingProfile) {
+      // Edit mode: merge parsed data over existing, but keep manual name/role
+      const updatedProfile: CandidateProfile = {
+        ...editingProfile,
+        name: newProfileName,
+        targetRole: newProfileRole,
+        resumeBase64: newProfileResume || editingProfile.resumeBase64,
+        resumeFileName: newProfileFileName || editingProfile.resumeFileName,
+        systemPrompt: newProfileSystemPrompt,
+        additionalContext: newProfileAdditionalContext,
+        ...(Object.keys(parsedData).length > 0 ? parsedData : {}),
+      };
+      setProfiles(profiles.map(p => p.id === editingProfile.id ? updatedProfile : p));
+      toast.success('Profile updated!');
+    } else {
+      const newProfile: CandidateProfile = {
+        id: Date.now().toString(),
+        name: newProfileName,
+        targetRole: newProfileRole,
+        skills: parsedData.skills || [],
+        experience: parsedData.experience || [],
+        education: parsedData.education || [],
+        personalInfo: parsedData.personalInfo || {},
+        summary: parsedData.summary || '',
+        resumeBase64: newProfileResume,
+        resumeFileName: newProfileFileName,
+      };
+      setProfiles([...profiles, newProfile]);
+      if (!activeProfileId) setActiveProfileId(newProfile.id);
+      toast.success(newProfileResume ? 'Profile created & resume parsed!' : 'Profile created!');
     }
-    
-    toast.success('Profile created successfully!');
+
+    setIsParsing(false);
+    const wasFirstProfile = profiles.length === 0 && !editingProfile;
+    resetProfileForm();
+    if (wasFirstProfile) setWizardStep(3);
   };
 
   return (
@@ -307,39 +404,66 @@ export function Dashboard() {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <div className="flex flex-col gap-1">
-                        <h3 className="text-xl font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">{p.name}</h3>
+                      <div className="flex flex-col gap-1 min-w-0 pr-2">
+                        <h3 className="text-base font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors truncate">{p.name}</h3>
+                        <p className="text-slate-500 text-sm">{p.targetRole}</p>
                         {activeProfileId === p.id && (
                           <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-bold tracking-wide w-fit">ACTIVE</span>
                         )}
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 shrink-0">
                         <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewingProfile(p);
-                          }}
+                          onClick={(e) => openEditProfile(e, p)}
+                          className="text-gray-400 hover:text-amber-500 hover:bg-amber-50 p-1.5 rounded-md transition-colors"
+                          title="Edit Profile"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setViewingProfile(p); }}
                           className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-md transition-colors"
                           title="View Profile"
                         >
-                          <Eye size={16} />
+                          <Eye size={14} />
                         </button>
                         <button 
                           onClick={(e) => deleteProfile(e, p.id)}
                           className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"
                           title="Delete Profile"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
-                    <p className="text-slate-500 font-medium mb-4">{p.targetRole}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(p.skills || []).slice(0, 3).map(skill => (
-                        <span key={skill} className="px-2.5 py-1 bg-slate-50 text-slate-600 ring-1 ring-slate-200 rounded-md text-xs font-medium">{skill}</span>
+
+                    {/* Stats row */}
+                    <div className="flex items-center gap-3 mt-3 mb-3 text-xs text-slate-500">
+                      {(p.experience?.length || 0) > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Briefcase size={11} /> {p.experience.length} role{p.experience.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {(p.education?.length || 0) > 0 && (
+                        <span className="flex items-center gap-1">
+                          <GraduationCap size={11} /> {(p.education as any[])[0]?.institution || 'Education'}
+                        </span>
+                      )}
+                      {p.resumeBase64 && (
+                        <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                          <FileText size={11} /> Resume
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {(p.skills || []).slice(0, 4).map(skill => (
+                        <span key={skill} className="px-2 py-0.5 bg-slate-50 text-slate-600 ring-1 ring-slate-200 rounded-md text-xs font-medium">{skill}</span>
                       ))}
-                      {(p.skills || []).length > 3 && (
-                        <span className="px-2.5 py-1 bg-slate-50 text-slate-600 ring-1 ring-slate-200 rounded-md text-xs font-medium">+{p.skills.length - 3}</span>
+                      {(p.skills || []).length > 4 && (
+                        <span className="px-2 py-0.5 bg-slate-50 text-slate-500 ring-1 ring-slate-200 rounded-md text-xs">+{p.skills.length - 4} more</span>
+                      )}
+                      {(p.skills || []).length === 0 && (
+                        <span className="text-xs text-slate-400 italic">No skills parsed yet</span>
                       )}
                     </div>
                   </div>
@@ -437,97 +561,73 @@ export function Dashboard() {
         )}
         </ErrorBoundary>
       </main>
-      
-      {/* Profile Creation Modal */}
-      {isAddingProfile && (
+      {/* Profile Creation / Edit Modal */}
+      {isAddingProfile && importMode === 'form' && (
+        <ProfileEditor
+          initialProfile={editingProfile}
+          settings={settings}
+          onSave={handleSaveFullProfile}
+          onCancel={resetProfileForm}
+        />
+      )}
+
+      {isAddingProfile && importMode === 'json' && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-2xl font-bold text-slate-800 mb-6">Create Profile</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block mb-1.5 font-medium text-slate-700 text-sm">Profile Name</label>
-                <input 
-                  type="text" 
-                  value={newProfileName}
-                  onChange={e => setNewProfileName(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all bg-slate-50/50 focus:bg-white text-sm"
-                  placeholder="e.g. Frontend Dev (React)"
-                />
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center px-8 pt-8 pb-4 border-b border-slate-100">
+              <h3 className="text-xl font-bold text-slate-800">
+                JSON Import
+              </h3>
+              <div className="flex items-center gap-2">
+                <div className="bg-slate-100 p-1 rounded-lg flex gap-1">
+                  <button 
+                    onClick={() => setImportMode('form')}
+                    className="px-3 py-1.5 text-xs font-bold rounded-md transition-colors text-slate-500 hover:text-slate-700"
+                  >
+                    Form
+                  </button>
+                  <button 
+                    onClick={() => setImportMode('json')}
+                    className="px-3 py-1.5 text-xs font-bold rounded-md transition-colors bg-white text-indigo-600 shadow-sm"
+                  >
+                    JSON Import
+                  </button>
+                </div>
+                <button onClick={resetProfileForm} className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                  <X size={18} />
+                </button>
               </div>
-              
-              <div>
-                <label className="block mb-1.5 font-medium text-slate-700 text-sm">Target Role</label>
-                <input 
-                  type="text" 
-                  value={newProfileRole}
-                  onChange={e => setNewProfileRole(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all bg-slate-50/50 focus:bg-white text-sm"
-                  placeholder="e.g. Senior Frontend Engineer"
-                />
-              </div>
+            </div>
 
-              <div>
-                <label className="block mb-1.5 font-medium text-slate-700 text-sm">Core Skills (comma separated)</label>
-                <input 
-                  type="text" 
-                  value={newProfileSkills}
-                  onChange={e => setNewProfileSkills(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all bg-slate-50/50 focus:bg-white text-sm"
-                  placeholder="e.g. React, TypeScript, Node.js"
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1.5 font-medium text-slate-700 text-sm">Upload Resume (PDF)</label>
-                <div className="relative border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 hover:border-indigo-400 transition-colors cursor-pointer group">
-                  <input 
-                    type="file" 
-                    accept="application/pdf"
-                    onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            <div className="flex-1 overflow-y-auto px-8 pb-4 pt-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="block mb-1.5 font-medium text-slate-700 text-sm">Paste Profile JSON</label>
+                  <p className="text-xs text-slate-500 mb-2">Paste a complete JSON profile (e.g. from <code className="bg-slate-100 px-1 rounded">fde_profile.json</code>) with personalInfo, systemPrompt, experience, etc.</p>
+                  <textarea 
+                    value={jsonImportContent}
+                    onChange={e => setJsonImportContent(e.target.value)}
+                    className="w-full p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all bg-slate-50/50 focus:bg-white text-xs font-mono h-56 resize-none"
+                    placeholder={'{ "name": "FDE Role", "targetRole": "Forward Deployed Engineer", ... }'}
                   />
-                  <div className="flex flex-col items-center gap-2">
-                    <svg className={`w-8 h-8 ${newProfileResume ? 'text-emerald-500' : 'text-slate-400 group-hover:text-indigo-500'} transition-colors`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      {newProfileResume ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      )}
-                    </svg>
-                    <span className="text-sm font-medium text-slate-600">
-                      {newProfileResume ? 'Resume attached ✅' : 'Click or drag PDF to upload'}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-6">
-                <button 
-                  onClick={() => setIsAddingProfile(false)}
-                  className="px-5 py-2.5 rounded-xl text-slate-600 font-medium hover:bg-slate-100 transition-colors"
-                  disabled={isParsing}
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleCreateProfile}
-                  disabled={isParsing || !newProfileName || !newProfileRole || !newProfileResume}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isParsing ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Parsing Resume...
-                    </>
-                  ) : (
-                    'Create Profile'
-                  )}
-                </button>
+            <div className="flex justify-end gap-3 px-8 py-5 border-t border-slate-100 shrink-0">
+              <button 
+                onClick={resetProfileForm}
+                className="px-5 py-2.5 rounded-xl text-slate-600 font-medium hover:bg-slate-100 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleCreateProfile}
+                disabled={!jsonImportContent}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+              >
+                Import Profile
+              </button>
             </div>
           </div>
         </div>
@@ -540,62 +640,128 @@ export function Dashboard() {
               <div>
                 <h3 className="text-2xl font-bold text-slate-800">{viewingProfile.name}</h3>
                 <p className="text-indigo-600 font-medium">{viewingProfile.targetRole}</p>
+                {viewingProfile.resumeFileName && (
+                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                    <FileText size={11} /> {viewingProfile.resumeFileName}
+                  </p>
+                )}
               </div>
-              <button 
-                onClick={() => setViewingProfile(null)}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => { setViewingProfile(null); openEditProfile(e, viewingProfile); }}
+                  className="text-gray-400 hover:text-amber-500 hover:bg-amber-50 p-2 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium"
+                  title="Edit Profile"
+                >
+                  <Pencil size={16} /> Edit
+                </button>
+                <button 
+                  onClick={() => setViewingProfile(null)}
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
             
-            <div className="p-6 overflow-y-auto">
-              <div className="mb-6">
-                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Core Skills</h4>
-                <div className="flex flex-wrap gap-2">
-                  {viewingProfile.skills.map(s => (
-                    <span key={s} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md text-sm font-medium border border-indigo-100">{s}</span>
-                  ))}
-                </div>
-              </div>
-              
-              {viewingProfile.summary && (
-                <div className="mb-8">
-                  <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">AI Generated Summary</h4>
-                  <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">{viewingProfile.summary}</p>
+            <div className="p-6 overflow-y-auto space-y-6">
+              {/* Personal Info */}
+              {viewingProfile.personalInfo && Object.keys(viewingProfile.personalInfo).filter(k => viewingProfile.personalInfo[k]).length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Contact & Personal Info</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm text-gray-700 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    {Object.entries(viewingProfile.personalInfo).filter(([, v]) => v).map(([key, value]) => (
+                      <div key={key} className="flex flex-col">
+                        <span className="text-xs font-semibold text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                        <span className="truncate text-xs" title={String(value)}>{String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              
-              <div>
-                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Parsed Experience</h4>
-                <div className="space-y-6">
-                  {viewingProfile.experience?.map((exp: any, i: number) => (
-                    <div key={i} className="relative pl-6 border-l-2 border-indigo-100">
-                      <div className="absolute w-3 h-3 bg-indigo-500 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                      <h5 className="font-bold text-gray-900 text-lg">{exp.title}</h5>
-                      <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
-                        <span className="text-indigo-600">{exp.company}</span>
-                        <span>•</span>
-                        <span>{exp.date}</span>
-                        {exp.location && (
-                          <>
-                            <span>•</span>
-                            <span>{exp.location}</span>
-                          </>
-                        )}
-                      </div>
-                      <ul className="list-disc pl-5 space-y-1.5 text-gray-600 text-sm">
-                        {exp.bullets.map((b: string, j: number) => (
-                          <li key={j} className="leading-relaxed">{b}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  {!viewingProfile.experience?.length && (
-                    <p className="text-gray-500 italic">No experience data could be parsed.</p>
-                  )}
+
+              {/* Skills */}
+              {(viewingProfile.skills?.length || 0) > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Skills</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingProfile.skills.map(s => (
+                      <span key={s} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium border border-indigo-100">{s}</span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Summary */}
+              {viewingProfile.summary && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Professional Summary</h4>
+                  <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100 text-sm">{viewingProfile.summary}</p>
+                </div>
+              )}
+
+              {/* Experience */}
+              {(viewingProfile.experience?.length || 0) > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Experience</h4>
+                  <div className="space-y-5">
+                    {viewingProfile.experience.map((exp: any, i: number) => {
+                      // Normalize both data formats: fde_profile (startDate/endDate/description) and parsed AI (date/bullets)
+                      const dateStr = exp.date || (exp.startDate ? `${exp.startDate} – ${exp.endDate || 'Present'}` : '');
+                      const bodyContent = exp.description
+                        ? <p className="text-gray-600 text-sm leading-relaxed">{exp.description}</p>
+                        : Array.isArray(exp.bullets) && exp.bullets.length > 0
+                          ? <ul className="list-disc pl-5 space-y-1.5 text-gray-600 text-sm">{exp.bullets.map((b: string, j: number) => <li key={j} className="leading-relaxed">{b}</li>)}</ul>
+                          : null;
+                      return (
+                        <div key={i} className="relative pl-5 border-l-2 border-indigo-100">
+                          <div className="absolute w-2.5 h-2.5 bg-indigo-400 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
+                          <div className="flex items-center justify-between">
+                            <h5 className="font-bold text-gray-900">{exp.title}</h5>
+                            <span className="text-xs text-gray-400">{dateStr}</span>
+                          </div>
+                          <p className="text-indigo-600 text-sm font-medium mb-2">{exp.company}</p>
+                          {bodyContent}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Education */}
+              {(viewingProfile.education?.length || 0) > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Education</h4>
+                  <div className="space-y-2">
+                    {(viewingProfile.education as any[]).map((edu, i) => (
+                      <div key={i} className="flex justify-between items-start bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm">{edu.degree}</p>
+                          <p className="text-indigo-600 text-xs">{edu.institution}</p>
+                          {edu.gpa && <p className="text-gray-400 text-xs">GPA: {edu.gpa}</p>}
+                        </div>
+                        <span className="text-xs text-gray-400">{edu.year}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* System Prompt */}
+              {viewingProfile.systemPrompt && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">System Prompt</h4>
+                  <p className="text-gray-700 text-xs leading-relaxed bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">{viewingProfile.systemPrompt}</p>
+                </div>
+              )}
+
+              {/* Additional Context */}
+              {viewingProfile.additionalContext && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Additional Context</h4>
+                  <p className="text-gray-700 text-sm leading-relaxed bg-amber-50/50 p-4 rounded-xl border border-amber-100 whitespace-pre-wrap">{viewingProfile.additionalContext}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -603,3 +769,4 @@ export function Dashboard() {
     </div>
   );
 }
+

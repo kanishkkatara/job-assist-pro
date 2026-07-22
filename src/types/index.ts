@@ -8,6 +8,9 @@ export interface CandidateProfile {
   personalInfo?: any;
   summary: string;
   resumeBase64?: string;
+  resumeFileName?: string;
+  additionalContext?: string;
+  systemPrompt?: string;
 }
 
 export interface JobDescription {

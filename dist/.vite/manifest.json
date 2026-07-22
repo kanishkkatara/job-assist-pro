@@ -9,19 +9,19 @@
     "file": "assets/content.ts-loader-ewZUf3w6.js",
     "src": "_content.ts-loader-ewZUf3w6.js"
   },
-  "_lucide-react-DmHCecq1.js": {
-    "file": "assets/lucide-react-DmHCecq1.js",
+  "_lucide-react-BmfNtXur.css": {
+    "file": "assets/lucide-react-BmfNtXur.css",
+    "src": "_lucide-react-BmfNtXur.css"
+  },
+  "_lucide-react-CzfM87Iw.js": {
+    "file": "assets/lucide-react-CzfM87Iw.js",
     "name": "lucide-react",
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js"
     ],
     "css": [
-      "assets/lucide-react-Lpdl64Xv.css"
+      "assets/lucide-react-BmfNtXur.css"
     ]
-  },
-  "_lucide-react-Lpdl64Xv.css": {
-    "file": "assets/lucide-react-Lpdl64Xv.css",
-    "src": "_lucide-react-Lpdl64Xv.css"
   },
   "_preload-helper-Dgt75Wkz.js": {
     "file": "assets/preload-helper-Dgt75Wkz.js",
@@ -60,13 +60,13 @@
     ]
   },
   "dashboard/dashboard.html": {
-    "file": "assets/dashboard.html-BWsXVfJS.js",
+    "file": "assets/dashboard.html-B5QFqevq.js",
     "name": "dashboard.html",
     "src": "dashboard/dashboard.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-DmHCecq1.js",
+      "_lucide-react-CzfM87Iw.js",
       "_preload-helper-Dgt75Wkz.js"
     ],
     "dynamicImports": [
@@ -76,23 +76,23 @@
     ]
   },
   "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js": {
-    "file": "assets/react-pdf.browser-CLw0-WW_.js",
+    "file": "assets/react-pdf.browser-CnpE89mh.js",
     "name": "react-pdf.browser",
     "src": "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js",
     "isDynamicEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-DmHCecq1.js"
+      "_lucide-react-CzfM87Iw.js"
     ]
   },
   "popup/popup.html": {
-    "file": "assets/popup.html-CF1JrhCG.js",
+    "file": "assets/popup.html-CkJ5mIhK.js",
     "name": "popup.html",
     "src": "popup/popup.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-DmHCecq1.js",
+      "_lucide-react-CzfM87Iw.js",
       "_preload-helper-Dgt75Wkz.js"
     ],
     "dynamicImports": [
@@ -100,13 +100,13 @@
     ]
   },
   "src/components/ResumeBuilder.tsx": {
-    "file": "assets/ResumeBuilder-Btbnnirn.js",
+    "file": "assets/ResumeBuilder-DZClR-Xy.js",
     "name": "ResumeBuilder",
     "src": "src/components/ResumeBuilder.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-DmHCecq1.js",
+      "_lucide-react-CzfM87Iw.js",
       "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js"
     ]
   }

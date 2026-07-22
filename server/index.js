@@ -80,15 +80,32 @@ app.post('/api/parse-resume', async (req, res) => {
       model: openai('gpt-4o-mini'),
       schema: z.object({
         summary: z.string().describe('A powerful 2-3 sentence professional summary based on the resume'),
+        skills: z.array(z.string()).describe('All technical and professional skills extracted from the resume'),
+        personalInfo: z.object({
+          fullName: z.string().describe('Full name of the candidate'),
+          email: z.string().describe('Email address, or empty string if not found'),
+          phone: z.string().describe('Phone number, or empty string if not found'),
+          location: z.string().describe('City/Country location, or empty string if not found'),
+          linkedin: z.string().describe('LinkedIn URL, or empty string if not found'),
+          github: z.string().describe('GitHub URL, or empty string if not found'),
+          website: z.string().describe('Personal website URL, or empty string if not found'),
+          yearsExperience: z.string().describe('Total years of professional experience as a number string'),
+        }),
         experience: z.array(z.object({
-          title: z.string(),
-          company: z.string(),
-          date: z.string(),
-          location: z.string().nullable().describe('Location, if any'),
-          bullets: z.array(z.string()).describe('The key achievements/responsibilities')
-        }))
+          title: z.string().describe('Job title'),
+          company: z.string().describe('Company name'),
+          startDate: z.string().describe('Start date e.g. "Jan 2022"'),
+          endDate: z.string().describe('End date e.g. "Mar 2024" or "Present"'),
+          description: z.string().describe('A single paragraph summarizing key achievements and responsibilities at this role'),
+        })).describe('All work experiences in reverse chronological order'),
+        education: z.array(z.object({
+          degree: z.string().describe('Degree name'),
+          institution: z.string().describe('University or school name'),
+          year: z.string().describe('Year or date range e.g. "2017 – 2021"'),
+          gpa: z.string().describe('GPA if mentioned, otherwise empty string'),
+        })),
       }),
-      system: 'Parse this raw PDF resume text into structured data. Fix any weird formatting or line breaks. Extract all work experience and write a summary.',
+      system: 'You are a professional resume parser. Parse the raw PDF resume text into structured data. Fix any weird formatting or line breaks from PDF extraction. Extract every piece of information faithfully. Do not invent data — if a field is not present, return an empty string.',
       messages: [
         { role: 'user', content: text }
       ],

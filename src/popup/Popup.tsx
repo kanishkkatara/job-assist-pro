@@ -63,7 +63,15 @@ export function Popup() {
     try {
       showBanner('success', 'Generating cover letter... (this takes a few seconds)');
       const { resumeBase64, ...profileData } = activeProfile;
-      const prompt = `Write a professional cover letter for the following job description based on my profile.\n\nProfile:\n${JSON.stringify(profileData)}\n\nJob Description:\n${jd?.text}\n\nKeep it concise, enthusiastic, and highly tailored. Just return the letter text.`;
+      const prompt = `Write a professional cover letter for the following job description based on my profile.
+${profileData.systemPrompt ? `\nCRITICAL INSTRUCTIONS (MUST FOLLOW STRICTLY):\n${profileData.systemPrompt}\n` : ''}
+Profile:
+${JSON.stringify({ ...profileData, systemPrompt: undefined, resumeBase64: undefined })}
+
+Job Description:
+${jd?.text}
+
+Task: Cross-reference the profile against the Job Description to deeply deduce technical overlap. Do not just regurgitate the profile; analyze what the JD actually needs and highlight the most relevant implicit or explicit experiences. Keep it highly tailored. Just return the letter text.`;
       
       const response = await fetch('http://localhost:3000/api/generate', {
         method: 'POST',
@@ -244,7 +252,18 @@ export function Popup() {
                     if (res.unansweredQuestions && res.unansweredQuestions.length > 0) {
                       showBanner('success', `AI is answering ${res.unansweredQuestions.length} custom questions...`);
                       const { resumeBase64, ...profileData } = activeProfile;
-                      const prompt = `You are an expert career assistant. Answer the following job application questions based on the candidate's profile and the job description. Keep answers extremely relevant and concise.\n\nProfile: ${JSON.stringify(profileData)}\n\nJD: ${jd?.text}\n\nQuestions:\n${res.unansweredQuestions.map((q: any) => `- [${q.id}] ${q.question}`).join('\n')}\n\nRespond with ONLY a raw JSON object where the keys are the exact question IDs in brackets above, and the values are the generated text answers. Do not include markdown code blocks like \`\`\`json.`;
+                      const prompt = `You are an expert career assistant. Answer the following job application questions based on the candidate's profile and the job description.
+${profileData.systemPrompt ? `\nCRITICAL TONE & INSTRUCTIONS:\n${profileData.systemPrompt}\n` : ''}
+Profile: ${JSON.stringify({ ...profileData, systemPrompt: undefined, resumeBase64: undefined })}
+
+JD: ${jd?.text}
+
+Task: Deeply analyze the JD and the Profile. For each question, synthesize the best answer by inferring how the candidate's background solves the JD's core problems. Keep answers extremely relevant and concise.
+
+Questions:
+${res.unansweredQuestions.map((q: any) => `- [${q.id}] ${q.question}`).join('\n')}
+
+Respond with ONLY a raw JSON object where the keys are the exact question IDs in brackets above, and the values are the generated text answers. Do not include markdown code blocks like \`\`\`json.`;
 
                       const aiRes = await fetch('http://localhost:3000/api/generate', {
                         method: 'POST',
@@ -303,7 +322,18 @@ export function Popup() {
                       if (res.unansweredQuestions && res.unansweredQuestions.length > 0) {
                         showBanner('success', `AI is answering ${res.unansweredQuestions.length} custom questions...`);
                         const { resumeBase64, ...profileData } = activeProfile;
-                        const prompt = `You are an expert career assistant. Answer the following job application questions based on the candidate's profile and the job description. Keep answers extremely relevant and concise.\n\nProfile: ${JSON.stringify(profileData)}\n\nJD: ${jd?.text}\n\nQuestions:\n${res.unansweredQuestions.map((q: any) => `- [${q.id}] ${q.question}`).join('\n')}\n\nRespond with ONLY a raw JSON object where the keys are the exact question IDs in brackets above, and the values are the generated text answers. Do not include markdown code blocks like \`\`\`json.`;
+                        const prompt = `You are an expert career assistant. Answer the following job application questions based on the candidate's profile and the job description.
+${profileData.systemPrompt ? `\nCRITICAL TONE & INSTRUCTIONS:\n${profileData.systemPrompt}\n` : ''}
+Profile: ${JSON.stringify({ ...profileData, systemPrompt: undefined, resumeBase64: undefined })}
+
+JD: ${jd?.text}
+
+Task: Deeply analyze the JD and the Profile. For each question, synthesize the best answer by inferring how the candidate's background solves the JD's core problems. Keep answers extremely relevant and concise.
+
+Questions:
+${res.unansweredQuestions.map((q: any) => `- [${q.id}] ${q.question}`).join('\n')}
+
+Respond with ONLY a raw JSON object where the keys are the exact question IDs in brackets above, and the values are the generated text answers. Do not include markdown code blocks like \`\`\`json.`;
 
                         const aiRes = await fetch('http://localhost:3000/api/generate', {
                           method: 'POST',
