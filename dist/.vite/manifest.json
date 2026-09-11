@@ -5,23 +5,23 @@
     "src": "../../../../../@crx/manifest",
     "isEntry": true
   },
-  "_content.ts-loader-ewZUf3w6.js": {
-    "file": "assets/content.ts-loader-ewZUf3w6.js",
-    "src": "_content.ts-loader-ewZUf3w6.js"
+  "_content.ts-loader-Bbts5mBg.js": {
+    "file": "assets/content.ts-loader-Bbts5mBg.js",
+    "src": "_content.ts-loader-Bbts5mBg.js"
   },
-  "_lucide-react-BmfNtXur.css": {
-    "file": "assets/lucide-react-BmfNtXur.css",
-    "src": "_lucide-react-BmfNtXur.css"
-  },
-  "_lucide-react-D8yjSbPb.js": {
-    "file": "assets/lucide-react-D8yjSbPb.js",
+  "_lucide-react-Boo-_J12.js": {
+    "file": "assets/lucide-react-Boo-_J12.js",
     "name": "lucide-react",
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js"
     ],
     "css": [
-      "assets/lucide-react-BmfNtXur.css"
+      "assets/lucide-react-C11V9FWS.css"
     ]
+  },
+  "_lucide-react-C11V9FWS.css": {
+    "file": "assets/lucide-react-C11V9FWS.css",
+    "src": "_lucide-react-C11V9FWS.css"
   },
   "_preload-helper-Dgt75Wkz.js": {
     "file": "assets/preload-helper-Dgt75Wkz.js",
@@ -35,7 +35,7 @@
     "name": "rolldown-runtime"
   },
   "background/service-worker.ts": {
-    "file": "assets/service-worker.ts-DlX5ZLl5.js",
+    "file": "assets/service-worker.ts-2YeLdrk3.js",
     "name": "service-worker.ts",
     "src": "background/service-worker.ts",
     "isEntry": true,
@@ -47,11 +47,11 @@
       "_preload-helper-Dgt75Wkz.js"
     ],
     "assets": [
-      "assets/content-Cjbtu8fU.ts"
+      "assets/content-CdCQu0rl.ts"
     ]
   },
   "content/content.ts": {
-    "file": "assets/content.ts-D9bZQrSD.js",
+    "file": "assets/content.ts-BFZgnBse.js",
     "name": "content.ts",
     "src": "content/content.ts",
     "isEntry": true,
@@ -60,13 +60,13 @@
     ]
   },
   "dashboard/dashboard.html": {
-    "file": "assets/dashboard.html-rP4-kYvf.js",
+    "file": "assets/dashboard.html-vPmWCrTS.js",
     "name": "dashboard.html",
     "src": "dashboard/dashboard.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-D8yjSbPb.js",
+      "_lucide-react-Boo-_J12.js",
       "_preload-helper-Dgt75Wkz.js"
     ],
     "dynamicImports": [
@@ -76,23 +76,23 @@
     ]
   },
   "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js": {
-    "file": "assets/react-pdf.browser-BNdUBzVH.js",
+    "file": "assets/react-pdf.browser-qFSjp_Q4.js",
     "name": "react-pdf.browser",
     "src": "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js",
     "isDynamicEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-D8yjSbPb.js"
+      "_lucide-react-Boo-_J12.js"
     ]
   },
   "popup/popup.html": {
-    "file": "assets/popup.html-DrTRxwgJ.js",
+    "file": "assets/popup.html-_UpSeH1j.js",
     "name": "popup.html",
     "src": "popup/popup.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-D8yjSbPb.js",
+      "_lucide-react-Boo-_J12.js",
       "_preload-helper-Dgt75Wkz.js"
     ],
     "dynamicImports": [
@@ -100,13 +100,13 @@
     ]
   },
   "src/components/ResumeBuilder.tsx": {
-    "file": "assets/ResumeBuilder-DB3d9ZF0.js",
+    "file": "assets/ResumeBuilder-CRpL2WV_.js",
     "name": "ResumeBuilder",
     "src": "src/components/ResumeBuilder.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_rolldown-runtime-BgaNhQyE.js",
-      "_lucide-react-D8yjSbPb.js",
+      "_lucide-react-Boo-_J12.js",
       "node_modules/@react-pdf/renderer/lib/react-pdf.browser.js"
     ]
   }

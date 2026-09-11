@@ -29,7 +29,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-loader-ewZUf3w6.js"
+        "assets/content.ts-loader-Bbts5mBg.js"
       ],
       "matches": [
         "<all_urls>"
@@ -68,7 +68,7 @@
       "resources": [
         "lib/pdf.worker.min.js",
         "assets/rolldown-runtime-BgaNhQyE.js",
-        "assets/content.ts-D9bZQrSD.js"
+        "assets/content.ts-BFZgnBse.js"
       ],
       "use_dynamic_url": false
     }
