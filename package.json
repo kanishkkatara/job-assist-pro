@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "package:zip": "zip -r job-assist-pro.zip . -x 'node_modules/*' 'server/node_modules/*' 'dist/*' '.git/*' '*.zip'"
   },
   "repository": {
     "type": "git",
@@ -17,7 +19,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/kanishkkatara/job-assist-pro/issues"
@@ -48,6 +50,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^7.0.2",
     "vite": "^8.1.4",
-    "vite-plugin-node-polyfills": "^0.28.0"
+    "vite-plugin-node-polyfills": "^0.28.0",
+    "vitest": "^5.0.0"
   }
 }
